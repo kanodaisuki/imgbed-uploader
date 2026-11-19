@@ -109,3 +109,5 @@ function uploadDocument(...): Promise<ItemOutcome[]>;   // 供 FR-1/2/5 与「�
 | --- | --- | --- | --- |
 | 2026-11-19 | §5 风险表 | 「服务端版本差异」对策改为"只对最新版图床负责，不做数组格式回退" | [`../design/T2-上传客户端.md`](../design/T2-上传客户端.md) §6 |
 | 2026-11-19 | §2 client.ts 草案 | `testConnection` 返回值改可辨识联合 `TestResult`，失败侧增可选 `status?`/`code?`（原 `{ ok, detail, url? }`） | [`../design/T3-测试连接.md`](../design/T3-测试连接.md) §3 |
+| 2026-11-19 | §2 parse.ts 草案 | `parseImageRefs` 返回值改 `ParseResult`（refs + skipped，落实风险表「可疑处跳过并列入失败报告」）；`key` 语义改「文档内词法规范化路径」（parse 无文档目录可依，去重为文档内行为）；remote target 补 `url` 字段；refdef 条目补 `useSpans`（FR-2 选区归属） | [`../design/T4-解析器设计.md`](../design/T4-解析器设计.md) §2.4/§2.6/§2.7 |
+| 2026-11-19 | §2 parse.ts 草案 | `ImageRef` 增 refdef 专用可选字段 `useStart/useEnd`（首个图片式引用区间；URL 区间在定义行，FR-2 选区归属不能只看 `urlStart`） | [`../design/T4-解析器设计.md`](../design/T4-解析器设计.md) §2.4 |
