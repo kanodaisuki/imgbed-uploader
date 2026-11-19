@@ -6,6 +6,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { UploadError, upload as clientUpload } from './client';
+import { downloadRemote as downloadImage } from './download';
 import { type ImageRef, parseImageRefs } from './parse';
 import { buildReplacements, markdownText } from './rewrite';
 import { ensureReady, showReport, withUploadLock } from './ui';
@@ -60,6 +61,7 @@ export function selfHosts(serverUrl: string, customCdn: string): string[] {
     if (raw.trim() === '') {
       continue;
     }
+    // scheme 判定与 config.normalizeCdn 的 HAS_SCHEME 同一字面量（改一处必改另一处，T8 §2.2）
     const url = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw)
       ? raw
       : `https://${raw}`;
@@ -336,10 +338,8 @@ export async function uploadDocument(
                 throw new Error(`文件不存在或不可读：${p}`);
               }
             },
-            // T6 期抛错桩：转存默认关闭不可达，T10 以 download.ts 替换（设计 §3）
-            downloadRemote: async () => {
-              throw new Error('远程图像转存尚未实现（T10）');
-            },
+            // T10：远程转存（白名单/自识别已在 planUploads 判定，这里只负责下载）
+            downloadRemote: (url) => downloadImage(url),
             upload: async (file) => {
               try {
                 return await clientUpload(file, config);

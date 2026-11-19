@@ -33,6 +33,21 @@ suite('config.normalize', () => {
     assert.strictEqual(normalize({}).customCdn, '');
   });
 
+  test('customCdn 无 scheme 补 https://、host:port 不误判、退化未启用（T8 §2.2）', () => {
+    const cdn = (v: string) => normalize({ customCdn: v }).customCdn;
+    assert.strictEqual(cdn('cdn.x/img'), 'https://cdn.x/img/');
+    assert.strictEqual(cdn('//cdn.x/img'), 'https://cdn.x/img/');
+    assert.strictEqual(
+      cdn('localhost:8080/img'),
+      'https://localhost:8080/img/',
+    );
+    assert.strictEqual(cdn('http://cdn.x/img/'), 'http://cdn.x/img/'); // 显式 http 保留
+    assert.strictEqual(cdn('/'), '');
+    assert.strictEqual(cdn('//'), '');
+    assert.strictEqual(cdn('://'), '');
+    assert.strictEqual(cdn('https://'), '');
+  });
+
   test('remoteWhitelist trim + 小写 + 过滤非法项', () => {
     assert.deepStrictEqual(
       normalize({ remoteWhitelist: [' Img.Shields.IO ', '', 42, 'a.com'] })

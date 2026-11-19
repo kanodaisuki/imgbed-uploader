@@ -98,7 +98,7 @@
           "type": "string",
           "default": "",
           "scope": "resource",
-          "description": "自定义 CDN / URL 前缀（如 https://cdn.example.com/file/），配置后回写链接用它拼接文件 ID"
+          "description": "自定义 CDN / URL 前缀（如 https://cdn.example.com/file/），配置后回写链接用它拼接文件 ID；可省略 https://（自动补全），仅支持 http 的 CDN 需显式写 http://"
         },
         "imgbedUploader.uploadRemoteImages": {
           "type": "boolean",

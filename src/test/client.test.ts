@@ -84,6 +84,31 @@ suite('client 纯函数', () => {
     );
   });
 
+  test('resolveUrl：空 fileId/空白 publicUrl 回落、大写 scheme 原样（T8 §2.2）', () => {
+    const cfg = { ...base, customCdn: 'https://cdn.x/file/' };
+    // 空 fileId → 落回 publicUrl / src（不产出 CDN 根）
+    assert.strictEqual(
+      resolveUrl({ src: '/', publicUrl: 'https://pub/a.jpg' }, cfg),
+      'https://pub/a.jpg',
+    );
+    assert.strictEqual(resolveUrl({ src: '/' }, cfg), 'https://img.x/');
+    // 纯空白 publicUrl → 落回 src
+    assert.strictEqual(
+      resolveUrl({ src: '/file/abc.jpg', publicUrl: '   ' }, base),
+      'https://img.x/file/abc.jpg',
+    );
+    // 大写 scheme src 原样返回，不拼 serverUrl
+    assert.strictEqual(
+      resolveUrl({ src: 'HTTPS://CDN.X/file/abc.jpg' }, base),
+      'HTTPS://CDN.X/file/abc.jpg',
+    );
+    // 子路径 fileId 拼接（uploadFolder 形态）
+    assert.strictEqual(
+      resolveUrl({ src: '/file/videos/a.mp4' }, cfg),
+      'https://cdn.x/file/videos/a.mp4',
+    );
+  });
+
   test('TEST_PNG：PNG 签名 + IHDR 1x1（防常量损坏）', () => {
     assert.deepStrictEqual(
       [...TEST_PNG.slice(0, 8)],

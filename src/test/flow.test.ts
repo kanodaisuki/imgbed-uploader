@@ -155,6 +155,46 @@ suite('flow 远程策略与幂等', () => {
       ['https://a.example.com/x.png'],
     );
   });
+
+  test('验收 12 投影：旧 CDN remote 全跳过零上传，本地引用照传', async () => {
+    const refs = [
+      remoteRef('https://old-cdn.x/file/a.png', 'old-cdn.x'),
+      remoteRef('https://img.example.com/file/b.png', 'img.example.com'),
+    ];
+    // customCdn 已改过：selfHosts 只含新 host，旧 CDN 链接不识别但仍默认跳过
+    const opts = { ...BASE, selfHosts: ['img.example.com'] };
+    let ioCalls = 0;
+    const io: Parameters<typeof runUploads>[1] = {
+      readLocal: async () => {
+        ioCalls += 1;
+        return new Uint8Array();
+      },
+      downloadRemote: async () => {
+        ioCalls += 1;
+        throw new Error('unused');
+      },
+      upload: async () => {
+        ioCalls += 1;
+        return { url: 'https://x' };
+      },
+    };
+    const plan = planUploads(refs, opts);
+    assert.deepStrictEqual(plan.items, []);
+    assert.strictEqual(plan.skipped.length, 2);
+    await runUploads(plan.items, io, {
+      onProgress: () => {},
+      isCancelled: () => false,
+    });
+    assert.strictEqual(ioCalls, 0, 'fake io 零调用（零上传零改写）');
+
+    // 对照：+1 个本地引用 → 仅本地进计划，旧 remote 照跳
+    const plan2 = planUploads([...refs, localRef('a.png', 30)], opts);
+    assert.deepStrictEqual(
+      plan2.items.map((i) => i.key),
+      ['a.png'],
+    );
+    assert.strictEqual(plan2.skipped.length, 2);
+  });
 });
 
 suite('flow 选区过滤（FR-2）', () => {

@@ -80,17 +80,22 @@ export function extractFileId(src: string, serverUrl: string): string {
 }
 
 // URL 优先级：customCdn + 文件ID → publicUrl → src / serverUrl + src（需求 4.3）
+// 空 fileId / 纯空白 publicUrl 落回下一级（T8 设计 §2.2，服务端响应信任边界）
 export function resolveUrl(
   res: { src: string; publicUrl?: string },
   cfg: Config,
 ): string {
   if (cfg.customCdn !== '') {
-    return cfg.customCdn + extractFileId(res.src, cfg.serverUrl);
+    const fileId = extractFileId(res.src, cfg.serverUrl);
+    if (fileId !== '') {
+      return cfg.customCdn + fileId;
+    }
   }
-  if (res.publicUrl !== undefined && res.publicUrl !== '') {
-    return res.publicUrl;
+  const publicUrl = res.publicUrl?.trim() ?? '';
+  if (publicUrl !== '') {
+    return publicUrl;
   }
-  if (/^https?:\/\//.test(res.src)) {
+  if (/^https?:\/\//i.test(res.src)) {
     return res.src;
   }
   return cfg.serverUrl + (res.src.startsWith('/') ? '' : '/') + res.src;

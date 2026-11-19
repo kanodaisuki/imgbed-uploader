@@ -52,10 +52,21 @@ function str(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-// 尾部统一为单个 /；空串表示未启用
+// customCdn 归一（T8 设计 §2.2）：无 scheme 补 https://（按 :// 判定，host:port 不误判）；
+// 退化输入（剥尾后 :// 之后无非空 host）→ '' 未启用。不变量（T8 §3）：'' 或 scheme://…/
+// scheme 判定与 flow.selfHosts 同一字面量（改一处必改另一处，T8 §2.2）
+const HAS_SCHEME = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//;
+
 function normalizeCdn(value: string): string {
-  const trimmed = value.trim();
-  return trimmed === '' ? '' : trimmed.replace(/\/+$/, '') + '/';
+  let s = value.trim();
+  if (s === '') {
+    return '';
+  }
+  if (!HAS_SCHEME.test(s)) {
+    s = `https://${s.replace(/^\/+/, '')}`;
+  }
+  s = s.replace(/\/+$/, '');
+  return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/:\s]/.test(s) ? `${s}/` : '';
 }
 
 // 纯函数，供单测；与 vscode 绑定分离（T1 设计 §2.1）
