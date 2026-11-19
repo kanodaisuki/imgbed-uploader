@@ -111,3 +111,6 @@ function uploadDocument(...): Promise<ItemOutcome[]>;   // 供 FR-1/2/5 与「�
 | 2026-11-19 | §2 client.ts 草案 | `testConnection` 返回值改可辨识联合 `TestResult`，失败侧增可选 `status?`/`code?`（原 `{ ok, detail, url? }`） | [`../design/T3-测试连接.md`](../design/T3-测试连接.md) §3 |
 | 2026-11-19 | §2 parse.ts 草案 | `parseImageRefs` 返回值改 `ParseResult`（refs + skipped，落实风险表「可疑处跳过并列入失败报告」）；`key` 语义改「文档内词法规范化路径」（parse 无文档目录可依，去重为文档内行为）；remote target 补 `url` 字段；refdef 条目补 `useSpans`（FR-2 选区归属） | [`../design/T4-解析器设计.md`](../design/T4-解析器设计.md) §2.4/§2.6/§2.7 |
 | 2026-11-19 | §2 parse.ts 草案 | `ImageRef` 增 refdef 专用可选字段 `useStart/useEnd`（首个图片式引用区间；URL 区间在定义行，FR-2 选区归属不能只看 `urlStart`） | [`../design/T4-解析器设计.md`](../design/T4-解析器设计.md) §2.4 |
+| 2026-11-19 | §2 flow.ts 草案 | `ItemOutcome`（per-ref）改 `ItemResult`（per-key 可辨识联合，落实去重分组语义）；`uploadDocument` 明确收 `TextEditor` + 选项（`selection`/`onlyKeys`） | [`../design/T6-文档上传流程设计.md`](../design/T6-文档上传流程设计.md) §3 |
+| 2026-11-19 | §2 flow.ts 草案 | `uploadDocument` 返回值改 `Promise<void>`（草案 `Promise<ItemOutcome[]>`：结果经报告呈现，重试经 `onlyKeys` 复用入口）；`planUploads` 补 `selfHosts` 选项（已回写自识别，§2.2） | [`../design/T6-文档上传流程设计.md`](../design/T6-文档上传流程设计.md) §2.2/§3 |
+| 2026-11-19 | §3 任务清单 T10 | 白名单 hostname 匹配纯函数归 T6（flow 编排必需，随 `planUploads` 落地）；T10 职责收窄为 `download.ts` 实现（下载/超时/非图片校验/转存文件名） | [`../design/T6-文档上传流程设计.md`](../design/T6-文档上传流程设计.md) §2.2/§2.7 |
