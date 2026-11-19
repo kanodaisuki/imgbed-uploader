@@ -18,12 +18,167 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "ImgBed Uploader",
+      "properties": {
+        "imgbedUploader.serverUrl": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "图床站点基础地址，如 https://img.example.com（自动去除尾部 /）"
+        },
+        "imgbedUploader.authType": {
+          "type": "string",
+          "enum": [
+            "authCode",
+            "apiToken",
+            "none"
+          ],
+          "default": "authCode",
+          "scope": "resource",
+          "description": "认证方式：上传认证码 / API Token（需 upload 权限）/ 免认证（服务端未开启用户端认证）。凭据通过命令「设置认证信息」录入，存入 SecretStorage，不进 settings.json"
+        },
+        "imgbedUploader.uploadChannel": {
+          "type": "string",
+          "enum": [
+            "telegram",
+            "cfr2",
+            "s3",
+            "discord",
+            "huggingface",
+            "webdav"
+          ],
+          "default": "telegram",
+          "scope": "resource",
+          "description": "上传渠道（uploadChannel）"
+        },
+        "imgbedUploader.channelName": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "同一渠道类型配置了多个渠道时指定渠道名（channelName），留空用服务端默认"
+        },
+        "imgbedUploader.uploadFolder": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "上传目录（uploadFolder，相对路径，如 img/test），留空为根目录"
+        },
+        "imgbedUploader.uploadNameType": {
+          "type": "string",
+          "enum": [
+            "default",
+            "index",
+            "origin",
+            "short"
+          ],
+          "default": "default",
+          "scope": "resource",
+          "description": "文件命名方式：前缀_原名 / 仅前缀 / 仅原名 / 短链接"
+        },
+        "imgbedUploader.expire": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "文件有效期（如 12h、7d、forever）；仅服务端开启有效期且允许上传者自选时生效，否则被忽略"
+        },
+        "imgbedUploader.serverCompress": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "服务端压缩（serverCompress，仅 Telegram 渠道图片生效）"
+        },
+        "imgbedUploader.autoRetry": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "上传失败时自动切换渠道重试（autoRetry）"
+        },
+        "imgbedUploader.customCdn": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "自定义 CDN / URL 前缀（如 https://cdn.example.com/file/），配置后回写链接用它拼接文件 ID"
+        },
+        "imgbedUploader.uploadRemoteImages": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "一键上传文档时转存远程图像：不在白名单的先下载再上传图床并回写"
+        },
+        "imgbedUploader.remoteWhitelist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "resource",
+          "description": "远程图像域名白名单（如 img.shields.io），命中则跳过不处理；按 URL 的 hostname 精确匹配"
+        },
+        "imgbedUploader.pasteUpload": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "在 Markdown / MDX 文档中粘贴图片时自动上传图床并插入链接；关闭时走 VS Code 默认行为"
+        }
+      }
+    },
     "commands": [
       {
-        "command": "imgbed-uploader.helloWorld",
-        "title": "Hello World"
+        "command": "imgbed-uploader.uploadAll",
+        "title": "上传文档全部本地图像",
+        "category": "ImgBed Uploader",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "imgbed-uploader.uploadSelected",
+        "title": "上传选定图片",
+        "category": "ImgBed Uploader"
+      },
+      {
+        "command": "imgbed-uploader.uploadFile",
+        "title": "上传本地图片",
+        "category": "ImgBed Uploader"
+      },
+      {
+        "command": "imgbed-uploader.setCredentials",
+        "title": "设置认证信息",
+        "category": "ImgBed Uploader"
+      },
+      {
+        "command": "imgbed-uploader.testConnection",
+        "title": "测试连接",
+        "category": "ImgBed Uploader"
       }
-    ]
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "imgbed-uploader.uploadAll",
+          "when": "editorLangId == markdown || editorLangId == mdx",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "imgbed-uploader.uploadAll",
+          "when": "editorLangId == markdown || editorLangId == mdx",
+          "group": "imgbed@1"
+        },
+        {
+          "command": "imgbed-uploader.uploadSelected",
+          "when": "editorHasSelection && (editorLangId == markdown || editorLangId == mdx)",
+          "group": "imgbed@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "imgbed-uploader.uploadFile",
+          "when": "resourceExtname =~ /\\.(png|jpe?g|gif|webp|avif|svg|bmp|ico)$/i",
+          "group": "imgbed@1"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",
