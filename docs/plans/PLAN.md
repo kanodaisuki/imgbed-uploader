@@ -108,3 +108,4 @@ function uploadDocument(...): Promise<ItemOutcome[]>;   // 供 FR-1/2/5 与「�
 | 日期 | 位置 | 变更 | 依据 |
 | --- | --- | --- | --- |
 | 2026-11-19 | §5 风险表 | 「服务端版本差异」对策改为"只对最新版图床负责，不做数组格式回退" | [`../design/T2-上传客户端.md`](../design/T2-上传客户端.md) §6 |
+| 2026-11-19 | §2 client.ts 草案 | `testConnection` 返回值改可辨识联合 `TestResult`，失败侧增可选 `status?`/`code?`（原 `{ ok, detail, url? }`） | [`../design/T3-测试连接.md`](../design/T3-测试连接.md) §3 |

@@ -27,4 +27,5 @@
 | [PLAN.md](plans/PLAN.md) | plans/ | 实施计划：模块划分、接口草案、任务 T0~T11、风险 | 已冻结 |
 | [T0-粘贴可行性验证.md](design/T0-粘贴可行性验证.md) | design/ | T0 方案设计：粘贴技术路线验证计划与选型决策规则 | 已冻结（spike 完成，结论已填，选型：方案 A） |
 | [T1-骨架装配.md](design/T1-骨架装配.md) | design/ | T1 方案设计：config/secrets/commands/菜单/首次引导 | 已冻结（T1 已实现，验收通过） |
-| [T2-上传客户端.md](design/T2-上传客户端.md) | design/ | T2 方案设计：client.ts 上传客户端（fetch/参数映射/错误映射） | 已冻结 |
+| [T2-上传客户端.md](design/T2-上传客户端.md) | design/ | T2 方案设计：client.ts 上传客户端（fetch/参数映射/错误映射） | 已冻结（T2 已实现，验收通过） |
+| [T3-测试连接.md](design/T3-测试连接.md) | design/ | T3 方案设计：testConnection（1x1 测试 PNG 端到端验证） | 已冻结（T3 已实现，验收通过） |
