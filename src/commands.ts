@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { testConnection } from './client';
+import { uploadDocument } from './flow';
 import { setCredential } from './secrets';
 import { ensureReady } from './ui';
 
@@ -93,19 +94,43 @@ async function runTestConnection(): Promise<void> {
   }
 }
 
+// T6 设计：文档上传流程（FR-1/2）
+async function runUploadAll(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (editor === undefined) {
+    void vscode.window.showInformationMessage(
+      'ImgBed Uploader：请先打开 Markdown / MDX 文档',
+    );
+    return;
+  }
+  await uploadDocument(editor, {});
+}
+
+async function runUploadSelected(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (editor === undefined) {
+    void vscode.window.showInformationMessage(
+      'ImgBed Uploader：请先打开 Markdown / MDX 文档',
+    );
+    return;
+  }
+  const doc = editor.document;
+  const sel = editor.selection;
+  await uploadDocument(editor, {
+    selection: { start: doc.offsetAt(sel.start), end: doc.offsetAt(sel.end) },
+  });
+}
+
 export function registerCommands(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'imgbed-uploader.setCredentials',
       promptCredential,
     ),
-    vscode.commands.registerCommand(
-      'imgbed-uploader.uploadAll',
-      stub('上传文档全部本地图像'),
-    ),
+    vscode.commands.registerCommand('imgbed-uploader.uploadAll', runUploadAll),
     vscode.commands.registerCommand(
       'imgbed-uploader.uploadSelected',
-      stub('上传选定图片'),
+      runUploadSelected,
     ),
     vscode.commands.registerCommand(
       'imgbed-uploader.uploadFile',
