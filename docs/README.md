@@ -30,3 +30,4 @@
 | [T2-上传客户端.md](design/T2-上传客户端.md) | design/ | T2 方案设计：client.ts 上传客户端（fetch/参数映射/错误映射） | 已冻结（T2 已实现，验收通过） |
 | [T3-测试连接.md](design/T3-测试连接.md) | design/ | T3 方案设计：testConnection（1x1 测试 PNG 端到端验证） | 已冻结（T3 已实现，验收通过） |
 | [T4-解析器设计.md](design/T4-解析器设计.md) | design/ | T4 方案设计：parse.ts 解析器（4.1 语法矩阵/代码区跳过/可疑跳过报告） | 已冻结（T4 已实现，验收通过） |
+| [T5-回写器设计.md](design/T5-回写器设计.md) | design/ | T5 方案设计：rewrite.ts 回写器（只换 URL/倒序输出/URL 上下文安全化） | 已冻结（T5 已实现，验收通过） |
