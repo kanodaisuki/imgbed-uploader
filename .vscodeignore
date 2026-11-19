@@ -3,8 +3,12 @@
 out/**
 node_modules/**
 src/**
+docs/**
 .gitignore
-.yarnrc
+.editorconfig
+.prettierignore
+.prettierrc
+.npmrc
 esbuild.js
 vsc-extension-quickstart.md
 **/tsconfig.json
@@ -12,3 +16,6 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+pnpm-lock.yaml
+pnpm-workspace.yaml
+*.vsix

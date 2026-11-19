@@ -1,8 +1,14 @@
 {
   "name": "imgbed-uploader",
   "displayName": "ImgBed Uploader",
+  "publisher": "KanoChan",
   "description": "自动上传 Markdown 文件中的本地图片到 CloudFlare ImgBed 图床",
   "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KanoChan/imgbed-uploader"
+  },
   "engines": {
     "vscode": "^1.146.0"
   },
@@ -28,25 +34,23 @@
     "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+    "pretest": "pnpm run compile-tests && pnpm run compile",
     "check-types": "tsc --noEmit",
-    "lint": "eslint src",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.146.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "24.x",
-    "typescript-eslint": "^8.61.1",
-    "eslint": "^10.5.0",
-    "esbuild": "^0.28.1",
-    "npm-run-all": "^4.1.5",
-    "typescript": "^6.0.3",
+    "@types/vscode": "^1.146.0",
     "@vscode/test-cli": "^0.0.15",
-    "@vscode/test-electron": "^3.0.0"
-  },
-  "overrides": {
-    "diff": "^8.0.4",
-    "serialize-javascript": "^7.0.6"
+    "@vscode/test-electron": "^3.0.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.10.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
   }
 }
