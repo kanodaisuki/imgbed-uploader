@@ -1,21 +1,9 @@
 import * as vscode from 'vscode';
 import { testConnection } from './client';
-import { uploadDocument } from './flow';
+import { uploadDocument, uploadLocalFiles } from './flow';
+import { IMAGE_EXTENSIONS } from './parse';
 import { setCredential } from './secrets';
 import { ensureReady } from './ui';
-
-// 桩命令：T2~T9 逐个替换为真实实现（T1 设计 §2.3）
-function stub(name: string): () => Promise<void> {
-  return async () => {
-    const config = await ensureReady(
-      vscode.window.activeTextEditor?.document.uri,
-    );
-    if (config === undefined) {
-      return;
-    }
-    void vscode.window.showInformationMessage(`${name}：功能开发中`);
-  };
-}
 
 async function promptCredential(): Promise<void> {
   const input = await vscode.window.showInputBox({
@@ -121,6 +109,35 @@ async function runUploadSelected(): Promise<void> {
   });
 }
 
+// T7 设计：文件上传（FR-4）。命令面板无参 → 文件选择框；资源管理器 → 菜单参数 (uri, uris)
+async function runUploadFile(
+  uri?: vscode.Uri,
+  uris?: vscode.Uri[],
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (
+    editor === undefined ||
+    (editor.document.languageId !== 'markdown' &&
+      editor.document.languageId !== 'mdx')
+  ) {
+    void vscode.window.showInformationMessage(
+      'ImgBed Uploader：请先打开 Markdown / MDX 文档',
+    );
+    return;
+  }
+  let files = uris ?? (uri !== undefined ? [uri] : undefined);
+  if (files === undefined) {
+    files = await vscode.window.showOpenDialog({
+      canSelectMany: true,
+      filters: { 图片: [...IMAGE_EXTENSIONS] },
+    });
+  }
+  if (files === undefined || files.length === 0) {
+    return; // 选择框取消/空列表静默退出（T7 §2.6）
+  }
+  await uploadLocalFiles(editor, files);
+}
+
 export function registerCommands(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -134,7 +151,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     ),
     vscode.commands.registerCommand(
       'imgbed-uploader.uploadFile',
-      stub('上传本地图片'),
+      runUploadFile,
     ),
     vscode.commands.registerCommand(
       'imgbed-uploader.testConnection',

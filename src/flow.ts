@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { UploadError, upload as clientUpload } from './client';
 import { type ImageRef, parseImageRefs } from './parse';
-import { buildReplacements } from './rewrite';
+import { buildReplacements, markdownText } from './rewrite';
 import { ensureReady, showReport, withUploadLock } from './ui';
 
 // ---------- 数据结构（设计 §3） ----------
@@ -153,7 +153,7 @@ export function resolveLocalPath(
 
 const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? p;
 
-// 纯：并发 3、进度/取消钩子、结果聚合（设计 §2.4/§2.5）。
+// 纯：并发 N（默认 3）、进度/取消钩子、结果聚合（T6 §2.4/§2.5；并发参数化见 T7 §2.3）。
 // 返回仅含已尝试项（item 顺序）；未派发数 = items.length - results.length（取消未开始）。
 export async function runUploads(
   items: UploadItem[],
@@ -166,6 +166,7 @@ export async function runUploads(
     onProgress(done: number, total: number): void;
     isCancelled(): boolean;
   },
+  concurrency = 3,
 ): Promise<ItemResult[]> {
   const results: (ItemResult | undefined)[] = new Array(items.length);
   let next = 0;
@@ -202,8 +203,57 @@ export async function runUploads(
       hooks.onProgress(done, items.length);
     }
   };
-  await Promise.all([worker(), worker(), worker()]);
+  await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
   return results.filter((r): r is ItemResult => r !== undefined);
+}
+
+// 纯：FR-4 插入细则（T7 §2.2）→ 单个插入点，一次编辑。
+// 空行（含纯缩进）就地：首链接落行尾（行首前缀保留），其余逐行向下；
+// 非空行（含标记行）下一行独立一行，前缀 = 内容列前全部字符原样复制；EOL 跟随文档。
+export function planFileInsert(
+  text: string,
+  cursorLine: number,
+  links: string[],
+): { offset: number; insert: string } {
+  if (links.length === 0) {
+    return { offset: 0, insert: '' };
+  }
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const lineStarts: number[] = [0];
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] === '\n') {
+      lineStarts.push(i + 1);
+    }
+  }
+  const line = Math.max(0, Math.min(cursorLine, lineStarts.length - 1));
+  const start = lineStarts[line];
+  const nextStart = lineStarts[line + 1];
+  let contentEnd = nextStart ?? text.length;
+  if (nextStart !== undefined && text[contentEnd - 1] === '\n') {
+    contentEnd -= 1;
+    if (text[contentEnd - 1] === '\r') {
+      contentEnd -= 1;
+    }
+  }
+  const content = text.slice(start, contentEnd);
+
+  if (content.trim() === '') {
+    // 空行就地：纯追加零删除（T7 §2.2 红线）
+    const prefix = content;
+    return {
+      offset: contentEnd,
+      insert: links.map((l, i) => (i === 0 ? l : prefix + l)).join(eol),
+    };
+  }
+
+  // 非空行（含 `- ` 等标记行）：前缀 = 行首空白 + > 引用链 + 列表 marker（T7 §2.2）
+  const prefix =
+    /^[\t ]*(?:>[\t ]*)*(?:(?:[-*+]|\d+[.)])[\t ]+)?/.exec(content)?.[0] ?? '';
+  const block = links.map((l) => prefix + l).join(eol);
+  if (nextStart !== undefined) {
+    return { offset: nextStart, insert: block + eol };
+  }
+  return { offset: text.length, insert: eol + block };
 }
 
 // ---------- vscode 壳（设计 §2.1/§2.3） ----------
@@ -384,6 +434,149 @@ export async function uploadDocument(
                 keys: failedKeys,
                 run: (keys) =>
                   uploadDocument(editor, { onlyKeys: new Set(keys) }),
+              }
+            : undefined,
+        authError,
+      },
+    );
+  });
+}
+
+// 壳：FR-4 文件上传（T7 设计 §2）：逐个上传（runUploads 并发 1）→ 单次编辑插入 → 报告。
+// 文件读取直读原始 Uri（fsPath→Uri 映射，不经 doc.uri 派生，§2.3）；
+// 插入段走 isClosed 关卡 + 同步原子段（§2.2，主流程与重试同一道关卡）。
+export async function uploadLocalFiles(
+  editor: vscode.TextEditor,
+  uris: vscode.Uri[],
+): Promise<void> {
+  if (uris.length === 0) {
+    return; // 空列表静默退出（T7 §2.6）
+  }
+  const doc = editor.document;
+  const config = await ensureReady(doc.uri);
+  if (config === undefined) {
+    return;
+  }
+
+  await withUploadLock(async () => {
+    const uriByPath = new Map(uris.map((u) => [u.fsPath, u]));
+    const items: UploadItem[] = uris.map((u) => ({
+      key: u.fsPath,
+      refs: [],
+      source: { type: 'local', path: u.fsPath },
+    }));
+
+    let authError = false;
+    const results = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `ImgBed Uploader：正在上传图片（共 ${items.length} 项）`,
+        cancellable: true,
+      },
+      (progress, token) =>
+        runUploads(
+          items,
+          {
+            readLocal: async (p) => {
+              const uri = uriByPath.get(p);
+              if (uri === undefined) {
+                throw new Error(`文件不存在或不可读：${p}`);
+              }
+              try {
+                return await vscode.workspace.fs.readFile(uri);
+              } catch {
+                throw new Error(`文件不存在或不可读：${p}`);
+              }
+            },
+            downloadRemote: async () => {
+              throw new Error('不适用（FR-4 仅本地文件）');
+            },
+            upload: async (file) => {
+              try {
+                return await clientUpload(file, config);
+              } catch (err) {
+                if (
+                  err instanceof UploadError &&
+                  (err.status === 401 || err.status === 403)
+                ) {
+                  authError = true;
+                }
+                throw err;
+              }
+            },
+          },
+          {
+            onProgress: (d, t) =>
+              progress.report({ message: `第 ${d}/${t} 张` }),
+            isCancelled: () => token.isCancellationRequested,
+          },
+          1, // FR-4「逐个上传」（T7 §2.3）
+        ),
+    );
+
+    const links: string[] = [];
+    const failedKeys: string[] = [];
+    for (const r of results) {
+      if (r.ok) {
+        links.push(`![](${markdownText(r.url)})`);
+      } else {
+        failedKeys.push(r.key);
+      }
+    }
+
+    // 插入段（T7 §2.2）：isClosed 关卡 → 插入时取值 → planFileInsert → applyEdit 同步原子段，不得夹 await
+    if (doc.isClosed) {
+      void vscode.window.showWarningMessage(
+        'ImgBed Uploader：文档已关闭，链接未插入',
+      );
+    } else if (links.length > 0) {
+      const plan = planFileInsert(
+        doc.getText(),
+        editor.selection.active.line,
+        links,
+      );
+      if (plan.insert !== '') {
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(doc.uri, doc.positionAt(plan.offset), plan.insert);
+        await vscode.workspace.applyEdit(edit); // 调用已在原子段内，await 只等结果
+      }
+    }
+
+    // 报告（4.4，计数按文件）
+    const notStarted = items.length - results.length;
+    const details: string[] = [];
+    for (const r of results) {
+      details.push(
+        r.ok ? `成功：${r.key} → ${r.url}` : `失败：${r.key} — ${r.error}`,
+      );
+    }
+    if (notStarted > 0) {
+      details.push(`跳过：${notStarted} 项未开始（已取消）`);
+    }
+    const failed = results.filter((r) => !r.ok).length;
+    showReport(
+      { succeeded: results.length - failed, failed, skipped: notStarted },
+      details,
+      {
+        retry:
+          failedKeys.length > 0
+            ? {
+                keys: failedKeys,
+                run: async (keys) => {
+                  // 重试前置关卡（T7 §2.5）：不为已关闭文档白传
+                  if (editor.document.isClosed) {
+                    void vscode.window.showWarningMessage(
+                      'ImgBed Uploader：文档已关闭，请重新执行命令',
+                    );
+                    return;
+                  }
+                  await uploadLocalFiles(
+                    editor,
+                    keys
+                      .map((k) => uriByPath.get(k))
+                      .filter((u): u is vscode.Uri => u !== undefined),
+                  );
+                },
               }
             : undefined,
         authError,

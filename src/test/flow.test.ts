@@ -1,9 +1,10 @@
 import * as assert from 'assert';
 import * as path from 'node:path';
 import { type ImageRef, parseImageRefs } from '../parse';
-import { buildReplacements } from '../rewrite';
+import { buildReplacements, markdownText } from '../rewrite';
 import {
   type UploadItem,
+  planFileInsert,
   planUploads,
   resolveLocalPath,
   runUploads,
@@ -341,6 +342,39 @@ suite('flow runUploads', () => {
     assert.ok(results.every((r) => r.ok));
   });
 
+  test('并发 1：串行派发（FR-4 逐个上传，T7 §2.3）', async () => {
+    const releases: Array<() => void> = [];
+    const io: Io = {
+      readLocal: async () => new Uint8Array(),
+      downloadRemote: async () => {
+        throw new Error('unused');
+      },
+      upload: (file) =>
+        new Promise<{ url: string }>((resolve) => {
+          releases.push(() => resolve({ url: `https://x/${file.name}` }));
+        }),
+    };
+    const items = ['1', '2', '3'].map((n) => localItem(`k${n}`, `${n}.png`));
+    const done = runUploads(items, io, noHooks, 1);
+    await delay(10);
+    assert.strictEqual(releases.length, 1, '并发 1 时仅派发 1 个');
+    for (const release of releases.splice(0)) {
+      release();
+    }
+    await delay(10);
+    assert.strictEqual(releases.length, 1, '完成 1 个后才补 1 个');
+    for (const release of releases.splice(0)) {
+      release();
+    }
+    await delay(10);
+    for (const release of releases.splice(0)) {
+      release();
+    }
+    const results = await done;
+    assert.strictEqual(results.length, 3);
+    assert.ok(results.every((r) => r.ok));
+  });
+
   test('转存链路：downloadRemote 产物直传 upload', async () => {
     const calls: Array<{ name: string; data: Uint8Array }> = [];
     const data = new Uint8Array([7, 7]);
@@ -437,5 +471,101 @@ suite('flow selfHosts（§2.2 自识别）', () => {
       ['img.example.com'],
     );
     assert.deepStrictEqual(selfHosts('', ''), []);
+  });
+});
+
+suite('flow planFileInsert 插入细则（FR-4）', () => {
+  // splice 全文对比（T5 同法）+ 零删除红线内建断言
+  const splice = (
+    text: string,
+    cursorLine: number,
+    links: string[],
+  ): string => {
+    const plan = planFileInsert(text, cursorLine, links);
+    const out =
+      text.slice(0, plan.offset) + plan.insert + text.slice(plan.offset);
+    assert.strictEqual(
+      out.length,
+      text.length + plan.insert.length,
+      '零删除红线：结果 = 原文 + 纯新增',
+    );
+    return out;
+  };
+
+  test('光标行非空：下一行独立一行（中间行）', () => {
+    assert.strictEqual(
+      splice('line1\nline2\nline3', 1, ['![](a)', '![](b)']),
+      'line1\nline2\n![](a)\n![](b)\nline3',
+    );
+  });
+
+  test('光标行非空：文末行追加，不吞既有换行', () => {
+    assert.strictEqual(
+      splice('line1\nline2', 1, ['![](a)']),
+      'line1\nline2\n![](a)',
+    );
+    assert.strictEqual(
+      splice('line1\nline2\n', 1, ['![](a)']),
+      'line1\nline2\n![](a)\n',
+    );
+  });
+
+  test('光标行空行：就地 + 后续逐行，纯缩进保留', () => {
+    assert.strictEqual(splice('a\n\nb', 1, ['L1', 'L2']), 'a\nL1\nL2\nb');
+    assert.strictEqual(
+      splice('a\n  \n  b', 1, ['L1', 'L2']),
+      'a\n  L1\n  L2\n  b',
+    );
+  });
+
+  test('空行 + 文末无尾换行：首链接行尾、其余补 EOL 开新行', () => {
+    assert.strictEqual(splice('a\n  ', 1, ['L1', 'L2']), 'a\n  L1\n  L2');
+  });
+
+  test('前缀复制：列表/引用/组合链不破格', () => {
+    assert.strictEqual(
+      splice('- 项目\nx', 0, ['![](u)']),
+      '- 项目\n- ![](u)\nx',
+    );
+    assert.strictEqual(
+      splice('> 引用\nx', 0, ['![](u)']),
+      '> 引用\n> ![](u)\nx',
+    );
+    assert.strictEqual(
+      splice('> - 项目\nx', 0, ['![](u)']),
+      '> - 项目\n> - ![](u)\nx',
+    );
+    assert.strictEqual(
+      splice('  > - 项目\nx', 0, ['![](u)']),
+      '  > - 项目\n  > - ![](u)\nx',
+    );
+  });
+
+  test('前缀复制负例：纯文本行零前缀；标记行走下一行新列表项', () => {
+    assert.strictEqual(splice('文本\nx', 0, ['![](u)']), '文本\n![](u)\nx');
+    assert.strictEqual(splice('- \nx', 0, ['![](u)']), '- \n- ![](u)\nx');
+  });
+
+  test('多选顺序逐行排列；单链接一行', () => {
+    assert.strictEqual(splice('a\nb', 0, ['1', '2', '3']), 'a\n1\n2\n3\nb');
+    assert.strictEqual(splice('a\nb', 0, ['1']), 'a\n1\nb');
+  });
+
+  test('CRLF 文档保持 CRLF', () => {
+    assert.strictEqual(splice('a\r\nb', 0, ['L1', 'L2']), 'a\r\nL1\r\nL2\r\nb');
+    assert.strictEqual(splice('a\r\n  \r\nb', 1, ['L1']), 'a\r\n  L1\r\nb');
+  });
+
+  test('全失败：links 空 → 空 insert、全文不变', () => {
+    assert.deepStrictEqual(planFileInsert('a\nb', 0, []), {
+      offset: 0,
+      insert: '',
+    });
+  });
+
+  test('安全化组合：含空格 URL 包 <> 插入', () => {
+    const link = `![](${markdownText('https://x/abc_图 1.png')})`;
+    assert.strictEqual(link, '![](<https://x/abc_图 1.png>)');
+    assert.strictEqual(splice('a\nb', 0, [link]), `a\n${link}\nb`);
   });
 });

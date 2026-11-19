@@ -18,8 +18,19 @@ export type Skipped = { start: number; end: number; reason: string };
 
 export type ParseResult = { refs: ImageRef[]; skipped: Skipped[] };
 
-// 扩展名粗筛常量（4.1）：仅作用于 local（设计 §3）
-const IMAGE_EXTS = /\.(png|jpe?g|gif|webp|avif|svg|bmp|ico)$/i;
+// 扩展名粗筛常量（4.1）：仅作用于 local（设计 §3）。清单单源导出（picker 过滤器复用，T7 §2.6）
+export const IMAGE_EXTENSIONS = [
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'avif',
+  'svg',
+  'bmp',
+  'ico',
+] as const;
+const IMAGE_EXTS = new RegExp(`\\.(${IMAGE_EXTENSIONS.join('|')})$`, 'i');
 
 type Span = [number, number];
 
