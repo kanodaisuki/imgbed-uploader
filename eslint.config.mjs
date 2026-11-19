@@ -1,8 +1,7 @@
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  // spike/ 是 T0 一次性验证代码（T9 后删除），不纳入 lint
-  { ignores: ['dist/**', 'out/**', '.vscode-test/**', 'spike/**'] },
+  { ignores: ['dist/**', 'out/**', '.vscode-test/**'] },
   ...tseslint.configs.recommended,
   {
     rules: {

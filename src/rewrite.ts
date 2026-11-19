@@ -22,7 +22,8 @@ function pct(ch: string): string {
 }
 
 // markdown（inline/refdef）：含不安全字符整体包 <>，包装内编码；否则裸写（设计 §2.3）
-function markdownText(url: string): string {
+// 导出供 paste 本地链接复用（T9 设计 §2.3，零逻辑改动）
+export function markdownText(url: string): string {
   if (!UNSAFE_MD.test(url)) {
     return url;
   }
