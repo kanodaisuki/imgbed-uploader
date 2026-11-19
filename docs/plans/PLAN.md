@@ -68,7 +68,7 @@ function uploadDocument(...): Promise<ItemOutcome[]>;   // 供 FR-1/2/5 与「�
 
 | # | 任务 | 内容 | 依赖 | 验收映射 | 估时 |
 | --- | --- | --- | --- | --- | --- |
-| T0 | 粘贴可行性 spike | 验证 FR-3 技术路线：`DocumentPasteEditProvider`（VS Code ≥1.78?）vs 重写 `editor.action.clipboardPasteAction`。产出结论写回本文档 | - | - | 0.5d |
+| T0 | 粘贴可行性 spike | 验证 FR-3 技术路线：`DocumentPasteEditProvider`（已转正 stable，详见 `design/T0`）vs 重写 `editor.action.clipboardPasteAction`。产出结论写回本文档 | - | - | 0.5d |
 | T1 | 骨架装配 | `config.ts`、`secrets.ts`、`commands.ts`、菜单 `when` 子句、首次引导（4.10） | - | 6 | 0.5d |
 | T2 | 上传客户端 | `client.ts`：multipart 上传、Query 参数映射、鉴权、错误映射（4.2/4.3/4.9） | T1 | 8 | 1d |
 | T3 | 测试连接 | `testConnection`：1x1 测试 PNG 端到端验证（第 6 节约定） | T2 | 6 | 0.5d |

@@ -25,3 +25,4 @@
 | --- | --- | --- | --- |
 | [Requirement.md](requirements/Requirement.md) | requirements/ | 插件需求文档：功能需求 FR-1~6、公共规则、设置、验收标准 | 已冻结 |
 | [PLAN.md](plans/PLAN.md) | plans/ | 实施计划：模块划分、接口草案、任务 T0~T11、风险 | 已冻结 |
+| [T0-粘贴可行性验证.md](design/T0-粘贴可行性验证.md) | design/ | T0 方案设计：粘贴技术路线验证计划与选型决策规则 | 已冻结 |
