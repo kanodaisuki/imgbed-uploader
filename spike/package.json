@@ -1,0 +1,23 @@
+{
+  "name": "paste-spike",
+  "displayName": "Paste Spike (T0)",
+  "description": "T0 粘贴可行性验证用临时扩展，验证后删除",
+  "publisher": "spike",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.146.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:markdown",
+    "onLanguage:mdx"
+  ],
+  "contributes": {
+    "commands": [
+      { "command": "spike.setMode", "title": "Spike: 设置模式" },
+      { "command": "spike.toggleYieldTo", "title": "Spike: 切换 yieldTo" },
+      { "command": "spike.openLog", "title": "Spike: 打开日志" },
+      { "command": "spike.clearLog", "title": "Spike: 清空日志" }
+    ]
+  }
+}
