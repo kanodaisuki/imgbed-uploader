@@ -114,3 +114,5 @@ function uploadDocument(...): Promise<ItemOutcome[]>;   // 供 FR-1/2/5 与「�
 | 2026-11-19 | §2 flow.ts 草案 | `ItemOutcome`（per-ref）改 `ItemResult`（per-key 可辨识联合，落实去重分组语义）；`uploadDocument` 明确收 `TextEditor` + 选项（`selection`/`onlyKeys`） | [`../design/T6-文档上传流程设计.md`](../design/T6-文档上传流程设计.md) §3 |
 | 2026-11-19 | §2 flow.ts 草案 | `uploadDocument` 返回值改 `Promise<void>`（草案 `Promise<ItemOutcome[]>`：结果经报告呈现，重试经 `onlyKeys` 复用入口）；`planUploads` 补 `selfHosts` 选项（已回写自识别，§2.2） | [`../design/T6-文档上传流程设计.md`](../design/T6-文档上传流程设计.md) §2.2/§3 |
 | 2026-11-19 | §3 任务清单 T10 | 白名单 hostname 匹配纯函数归 T6（flow 编排必需，随 `planUploads` 落地）；T10 职责收窄为 `download.ts` 实现（下载/超时/非图片校验/转存文件名） | [`../design/T6-文档上传流程设计.md`](../design/T6-文档上传流程设计.md) §2.2/§2.7 |
+| 2026-11-19 | §3 任务清单 T7 | 验收映射「1」勘误：验收清单无 FR-4 专条，FR-4 插入细则以 T7 §5 单测 + T11 走查覆盖 | [`../design/T7-文件上传流程设计.md`](../design/T7-文件上传流程设计.md) §4 |
+| 2026-11-19 | §3 任务清单 T7 | FR-4「逐行插入」勘误：指每文件独立一行的**版式**，非流式逐条插入——实现为批量上传完成后单次编辑插入（单次 Ctrl+Z） | [`../design/T7-文件上传流程设计.md`](../design/T7-文件上传流程设计.md) §2.2/§4 |
