@@ -3,11 +3,13 @@ import * as http from 'http';
 import type { AddressInfo } from 'net';
 import * as vscode from 'vscode';
 import {
+  TEST_PNG,
   UploadError,
   buildQuery,
   extractFileId,
   mapError,
   resolveUrl,
+  testConnection,
   upload,
 } from '../client';
 import { normalize } from '../config';
@@ -82,6 +84,16 @@ suite('client 纯函数', () => {
     );
   });
 
+  test('TEST_PNG：PNG 签名 + IHDR 1x1（防常量损坏）', () => {
+    assert.deepStrictEqual(
+      [...TEST_PNG.slice(0, 8)],
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+    );
+    const buf = Buffer.from(TEST_PNG);
+    assert.strictEqual(buf.readUInt32BE(16), 1);
+    assert.strictEqual(buf.readUInt32BE(20), 1);
+  });
+
   test('mapError：服务端原文透传、code 提取、401 追加提示', () => {
     const err = mapError(
       400,
@@ -105,11 +117,12 @@ suite('client 纯函数', () => {
   });
 });
 
-suite('client.upload 集成（进程内 mock 图床）', () => {
+suite('client.upload / testConnection 集成（进程内 mock 图床）', () => {
   // 路由约定：channelName 值触发特殊响应（upload 无法传任意 query，借道 channelName）
   let server: http.Server;
   let port: number;
   let lastReq: { url: string; headers: http.IncomingHttpHeaders; body: Buffer };
+  let requestCount: number;
 
   const cfgFor = (channelName?: string) =>
     normalize({
@@ -123,8 +136,10 @@ suite('client.upload 集成（进程内 mock 图床）', () => {
       store: async () => undefined,
       delete: async () => undefined,
     } as unknown as vscode.SecretStorage);
+    requestCount = 0;
 
     server = http.createServer((req, res) => {
+      requestCount += 1;
       const chunks: Buffer[] = [];
       req.on('data', (c: Buffer) => chunks.push(c));
       req.on('end', () => {
@@ -147,6 +162,9 @@ suite('client.upload 集成（进程内 mock 图床）', () => {
                 error: '格式不允许',
               }),
             );
+            break;
+          case 'unauth':
+            respond(401, JSON.stringify({ error: 'Invalid auth code' }));
             break;
           case 'badresp':
             respond(200, 'not-json');
@@ -288,6 +306,137 @@ suite('client.upload 集成（进程内 mock 图床）', () => {
       assert.strictEqual(
         (err as UploadError).message,
         '图床地址无效，请检查 serverUrl 配置',
+      );
+      assert.strictEqual((err as UploadError).code, 'INVALID_SERVER_URL');
+    }
+  });
+
+  test('testConnection 成功：detail 含渠道名与 URL，1x1 PNG 真实链路字节', async () => {
+    const result = await testConnection(
+      normalize({ serverUrl: `http://127.0.0.1:${port}` }),
+    );
+    if (!result.ok) {
+      assert.fail('应当成功');
+    }
+    assert.strictEqual(result.url, 'https://pub/file/abc_图 1.png');
+    assert.ok(result.detail.includes('渠道：telegram'));
+    assert.ok(result.detail.includes(result.url));
+    // mock 侧断言请求形态与文件字节（T3 设计 §5）
+    assert.ok(lastReq.body.includes('name="file"'));
+    assert.ok(lastReq.body.includes(Buffer.from('imgbed-test.png', 'utf8')));
+    assert.ok(
+      lastReq.body.includes(
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      ),
+    );
+    assert.ok(
+      lastReq.body.includes(
+        Buffer.concat([
+          Buffer.from('IHDR'),
+          Buffer.from([0, 0, 0, 1, 0, 0, 0, 1]),
+        ]),
+      ),
+    );
+    assert.strictEqual(requestCount, 1);
+  });
+
+  test('testConnection 401：服务端原文 + 认证提示 + status 透传（验收 6）', async () => {
+    const result = await testConnection(
+      normalize({
+        serverUrl: `http://127.0.0.1:${port}`,
+        channelName: 'unauth',
+      }),
+    );
+    if (result.ok) {
+      assert.fail('应当失败');
+    }
+    assert.strictEqual(result.status, 401);
+    assert.strictEqual(result.detail, 'Invalid auth code（请检查认证信息）');
+  });
+
+  test('testConnection 400：服务端原文 + code 透传', async () => {
+    const result = await testConnection(
+      normalize({
+        serverUrl: `http://127.0.0.1:${port}`,
+        channelName: 'fail',
+      }),
+    );
+    if (result.ok) {
+      assert.fail('应当失败');
+    }
+    assert.strictEqual(result.status, 400);
+    assert.strictEqual(result.code, 'UPLOAD_FORMAT_NOT_ALLOWED');
+    assert.strictEqual(result.detail, '格式不允许');
+  });
+
+  test('testConnection 连接被拒：detail 为「上传失败：…」', async () => {
+    // 临时端口起后即关，保证连接被拒
+    const probe = http.createServer();
+    await new Promise<void>((resolve) =>
+      probe.listen(0, '127.0.0.1', () => resolve()),
+    );
+    const deadPort = (probe.address() as AddressInfo).port;
+    await new Promise<void>((resolve) => probe.close(() => resolve()));
+    const result = await testConnection(
+      normalize({ serverUrl: `http://127.0.0.1:${deadPort}` }),
+    );
+    if (result.ok) {
+      assert.fail('应当失败');
+    }
+    assert.ok(result.detail.startsWith('上传失败：'));
+  });
+
+  test('testConnection serverUrl 非法：code=INVALID_SERVER_URL', async () => {
+    const result = await testConnection(normalize({ serverUrl: 'not a url' }));
+    if (result.ok) {
+      assert.fail('应当失败');
+    }
+    assert.strictEqual(result.detail, '图床地址无效，请检查 serverUrl 配置');
+    assert.strictEqual(result.code, 'INVALID_SERVER_URL');
+  });
+
+  test('testConnection catch-all：非 UploadError 异常转「测试连接失败：…」', async () => {
+    initSecrets({
+      get: async () => {
+        throw new Error('boom');
+      },
+      store: async () => undefined,
+      delete: async () => undefined,
+    } as unknown as vscode.SecretStorage);
+    const result = await testConnection(
+      normalize({ serverUrl: `http://127.0.0.1:${port}` }),
+    );
+    if (result.ok) {
+      assert.fail('应当失败');
+    }
+    assert.strictEqual(result.detail, '测试连接失败：boom');
+    assert.strictEqual(requestCount, 0);
+  });
+
+  test('命令层：凭据缺失时引导前置拦截、mock 侧零请求（4.10）', async () => {
+    // 前置：测试实例真实 SecretStorage 为空（本套件只注入假 SecretStorage，不写真实存储）
+    const cfg = vscode.workspace.getConfiguration('imgbedUploader');
+    await cfg.update(
+      'serverUrl',
+      `http://127.0.0.1:${port}`,
+      vscode.ConfigurationTarget.Global,
+    );
+    await cfg.update('authType', 'apiToken', vscode.ConfigurationTarget.Global);
+    try {
+      // 引导弹窗等待交互，命令 Promise 不结束：不 await，观察零请求（T3 设计 §5）
+      void vscode.commands.executeCommand('imgbed-uploader.testConnection');
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      assert.strictEqual(requestCount, 0);
+    } finally {
+      await cfg.update(
+        'serverUrl',
+        undefined,
+        vscode.ConfigurationTarget.Global,
+      );
+      await cfg.update(
+        'authType',
+        undefined,
+        vscode.ConfigurationTarget.Global,
       );
     }
   });

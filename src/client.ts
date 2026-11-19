@@ -135,7 +135,9 @@ export async function upload(
   try {
     new URL(cfg.serverUrl);
   } catch {
-    throw new UploadError('图床地址无效，请检查 serverUrl 配置');
+    throw new UploadError('图床地址无效，请检查 serverUrl 配置', {
+      code: 'INVALID_SERVER_URL',
+    });
   }
 
   const timeoutMs = opts?.timeoutMs ?? 60_000;
@@ -203,4 +205,41 @@ export async function upload(
       cfg,
     ),
   };
+}
+
+// T3 设计：测试连接。上传 1x1 测试 PNG 做端到端验证（需求第 6 节），薄封装
+// 复用 upload()。测试图数据内置 base64 常量（T3 设计 §2.2）；请求文件名固定，
+// 落库名由服务端 uploadNameType 决定。
+const TEST_FILE_NAME = 'imgbed-test.png';
+export const TEST_PNG: Uint8Array = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=',
+  'base64',
+);
+
+// 可辨识联合：ok 为真时必有 url，为假时才可能有 status/code（T3 设计 §3）
+export type TestResult =
+  | { ok: true; detail: string; url: string }
+  | { ok: false; detail: string; status?: number; code?: string };
+
+export async function testConnection(cfg: Config): Promise<TestResult> {
+  try {
+    const { url } = await upload({ name: TEST_FILE_NAME, data: TEST_PNG }, cfg);
+    return {
+      ok: true,
+      detail: `连接成功（渠道：${cfg.uploadChannel}），测试文件已上传：${url}（可在图床中自行删除）`,
+      url,
+    };
+  } catch (err) {
+    if (err instanceof UploadError) {
+      return {
+        ok: false,
+        detail: err.message,
+        status: err.status,
+        code: err.code,
+      };
+    }
+    // 非 UploadError 异常 catch-all，不冒泡成 VS Code 英文通用报错（T3 设计 §2.3）
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, detail: `测试连接失败：${message}` };
+  }
 }
