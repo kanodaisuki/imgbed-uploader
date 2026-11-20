@@ -67,7 +67,7 @@
 
 - VS Code `1.146.0` 及以上
 - Markdown / MDX 文档
-- 服务端为最新版 CloudFlare ImgBed（`responseFormat` 等新接口）
+- 服务端为 CloudFlare ImgBed **v2.7.8**（本插件基于该版本开发，依赖 `responseFormat` 等接口）；其它版本未做完整测试，不保证兼容
 
 ## 开发
 
