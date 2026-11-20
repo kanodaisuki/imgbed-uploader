@@ -25,7 +25,7 @@
           "type": "string",
           "default": "",
           "scope": "resource",
-          "description": "图床站点基础地址，如 https://img.example.com（自动去除尾部 /）"
+          "description": "图床站点基础地址，如 https://img.example.com"
         },
         "imgbedUploader.authType": {
           "type": "string",
@@ -36,7 +36,7 @@
           ],
           "default": "authCode",
           "scope": "resource",
-          "description": "认证方式：上传认证码 / API Token（需 upload 权限）/ 免认证（服务端未开启用户端认证）。凭据通过命令「设置认证信息」录入，存入 SecretStorage，不进 settings.json"
+          "description": "认证方式：上传认证码 / API Token（需 upload 权限）/ 免认证（服务端未开启用户端认证）。凭据通过命令「设置认证信息」录入，存入 SecretStorage"
         },
         "imgbedUploader.uploadChannel": {
           "type": "string",
@@ -50,19 +50,19 @@
           ],
           "default": "telegram",
           "scope": "resource",
-          "description": "上传渠道（uploadChannel）"
+          "description": "上传渠道"
         },
         "imgbedUploader.channelName": {
           "type": "string",
           "default": "",
           "scope": "resource",
-          "description": "同一渠道类型配置了多个渠道时指定渠道名（channelName），留空用服务端默认"
+          "description": "同一渠道类型配置了多个渠道时指定渠道名，留空用服务端默认"
         },
         "imgbedUploader.uploadFolder": {
           "type": "string",
           "default": "",
           "scope": "resource",
-          "description": "上传目录（uploadFolder，相对路径，如 img/test），留空为根目录"
+          "description": "上传目录（相对路径，如 img/test），留空为根目录"
         },
         "imgbedUploader.uploadNameType": {
           "type": "string",
@@ -86,19 +86,19 @@
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "description": "服务端压缩（serverCompress，仅 Telegram 渠道图片生效）"
+          "description": "服务端压缩（仅 Telegram 渠道图片生效）"
         },
         "imgbedUploader.autoRetry": {
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "description": "上传失败时自动切换渠道重试（autoRetry）"
+          "description": "上传失败时自动切换渠道重试"
         },
         "imgbedUploader.customCdn": {
           "type": "string",
           "default": "",
           "scope": "resource",
-          "description": "自定义 CDN / URL 前缀（如 https://cdn.example.com/file/），配置后回写链接用它拼接文件 ID；可省略 https://（自动补全），仅支持 http 的 CDN 需显式写 http://"
+          "description": "自定义 CDN / URL 前缀（如 https://cdn.example.com/file/）；可省略 https://（自动补全），仅支持 http 的 CDN 需显式写 http://"
         },
         "imgbedUploader.uploadRemoteImages": {
           "type": "boolean",
