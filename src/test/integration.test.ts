@@ -5,20 +5,14 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import type { ExtensionApi } from '../extension';
 import { type Mock, TEST_PNG, startMock } from './mockImgbed';
 import { type Notifier, stubNotifications } from './notifications';
-
-type TestHooks = {
-  setCredential(secret: string): Promise<void>;
-  clearCredential(): Promise<void>;
-  hasCredential(): Promise<boolean>;
-  useMemorySecrets(): void;
-};
 
 suite('T11 集成测试（mock 图床端到端）', () => {
   let mock: Mock;
   let notify: Notifier;
-  let hooks: TestHooks;
+  let hooks: ExtensionApi;
   let tmp: string;
   const savedCfg = new Map<string, unknown>();
   const CFG_KEYS = [
@@ -122,7 +116,7 @@ suite('T11 集成测试（mock 图床端到端）', () => {
     for (const key of CFG_KEYS) {
       savedCfg.set(key, cfg.inspect(key)?.globalValue);
     }
-    const ext = vscode.extensions.getExtension<TestHooks>(
+    const ext = vscode.extensions.getExtension<ExtensionApi>(
       'kanodaisuki.imgbed-uploader',
     );
     assert.ok(ext, '未找到扩展 kanodaisuki.imgbed-uploader');
