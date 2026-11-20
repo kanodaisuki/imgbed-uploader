@@ -2,7 +2,8 @@
   "name": "imgbed-uploader",
   "displayName": "ImgBed Uploader",
   "publisher": "KanoChan",
-  "description": "自动上传 Markdown 文件中的本地图片到 CloudFlare ImgBed 图床",
+  "description": "把 Markdown / MDX 文档里的本地图像一键上传到 CloudFlare ImgBed 图床，并把链接回写进文档。粘贴截图自动上传，远程图可转存，支持自定义 CDN 回写。",
+  "icon": "images/icon.png",
   "keywords": [
     "markdown",
     "mdx",
