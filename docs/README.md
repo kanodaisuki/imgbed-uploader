@@ -36,4 +36,4 @@
 | [T8-CDN回写设计.md](design/T8-CDN回写设计.md) | design/ | T8 方案设计：FR-6 收尾（customCdn 无 scheme 归一/空文件ID 回落/验收 12 投影） | 已冻结（T8 已实现，验收通过） |
 | [T9-粘贴上传.md](design/T9-粘贴上传.md) | design/ | T9 方案设计：paste.ts 粘贴接管（内存上传/失败降级落盘/超时取消/文件名生成） | 已冻结（T9 已实现，验收通过） |
 | [T10-远程图像转存.md](design/T10-远程图像转存.md) | design/ | T10 方案设计：download.ts 远程转存（60s 总时限/50 MiB 流式上限/字节嗅探非图片校验/转存文件名） | 已冻结（T10 已实现，单测 17 项通过） |
-| [T11-集成测试.md](design/T11-集成测试.md) | design/ | T11 方案设计：集成测试（mock 图床三 hostname/通知与 OutputChannel 打桩/11 条验收 + 兄弟委托 14 suite） | 已冻结（集成测试已实现，169 项全绿；待人工走查与 CHANGELOG） |
+| [T11-集成测试.md](design/T11-集成测试.md) | design/ | T11 方案设计：集成测试（mock 图床三 hostname/通知与 OutputChannel 打桩/11 条验收 + 兄弟委托 14 suite） | 已冻结（集成测试已实现，169 项全绿；CHANGELOG/打包已就绪，待人工走查与缺陷修复） |
