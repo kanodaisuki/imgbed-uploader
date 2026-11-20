@@ -117,9 +117,9 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       savedCfg.set(key, cfg.inspect(key)?.globalValue);
     }
     const ext = vscode.extensions.getExtension<ExtensionApi>(
-      'kanodaisuki.imgbed-uploader',
+      'kanochan.imgbed-uploader',
     );
-    assert.ok(ext, '未找到扩展 kanodaisuki.imgbed-uploader');
+    assert.ok(ext, '未找到扩展 kanochan.imgbed-uploader');
     hooks = await ext.activate();
     hooks.useMemorySecrets(); // 内存凭据：真 SecretStorage 写读传播不可靠（施工记录）
     // 核心 Chat UI 无法用 --disable-extension 摘掉（并入 workbench 核心）：禁 AI 功能隐藏之
