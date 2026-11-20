@@ -3,6 +3,16 @@
   "displayName": "ImgBed Uploader",
   "publisher": "KanoChan",
   "description": "自动上传 Markdown 文件中的本地图片到 CloudFlare ImgBed 图床",
+  "keywords": [
+    "markdown",
+    "mdx",
+    "image",
+    "upload",
+    "imgbed",
+    "cloudflare",
+    "图床",
+    "图片上传"
+  ],
   "version": "1.0.0",
   "license": "MIT",
   "repository": {
