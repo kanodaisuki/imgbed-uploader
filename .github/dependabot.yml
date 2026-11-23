@@ -13,6 +13,18 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # 分组 PR 只收 minor/patch；major 单独出，便于逐个评估
     groups:
       dev-dependencies:
         dependency-type: development
+        update-types: ['minor', 'patch']
+    ignore:
+      # 与 CI 的 Node 运行时绑定，必须随运行时一起人工升级（当前 Node 22 + @types/node 24）
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      # 必须与 engines.vscode 同步，属人工升级
+      - dependency-name: '@types/vscode'
+        update-types: ['version-update:semver-major']
+      # TypeScript 7 是原生移植版，迁移需单独评估（eslint 解析器 / 构建链）
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
