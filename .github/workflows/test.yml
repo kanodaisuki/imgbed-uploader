@@ -1,0 +1,38 @@
+name: Test
+
+# PR 与手动触发；release.yml 通过 workflow_call 复用它，tag 发布前必须先跑通
+on:
+  workflow_call:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
+        with:
+          version: 12.4.1
+          runtime: node@22
+          cache: true
+          require-lockfile: true
+
+      # 测试实例按 .vscode-test.mjs 里 pin 的版本缓存，省掉每次下载
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .vscode-test/vscode-linux-x64-archive-1.147.0
+          key: vscode-test-linux-x64-1.147.0
+
+      # pretest 会先跑 compile-tests + compile；ubuntu 无显示器，需要 xvfb
+      - run: xvfb-run -a pnpm test

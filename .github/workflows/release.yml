@@ -5,12 +5,22 @@ on:
     branches: [main]
     tags: ['v*']
 
+# 同一 ref 的发布串行化，避免重复推送 tag / 重跑时两次发布互相踩踏
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  # 复用 test.yml：tag 发布前必须先跑通测试（push main / tag 都会触发）
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
-    runs-on: ubuntu-latest
+    needs: test
+    runs-on: ubuntu-24.04
     permissions:
       contents: write # 创建 GitHub Release
-      id-token: write # Marketplace 可信发布（OIDC，无需 PAT）
+      id-token: write # Marketplace / Open VSX 可信发布（OIDC，无需 PAT）
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -24,12 +34,33 @@ jobs:
           cache: true
           require-lockfile: true
 
-      # vsce 打包时用 npm 执行 vscode:prepublish，而 pnpm 安装的 Node 不带 npm
-      - run: pnpm add -g npm
+      # tag 只决定"是否发布"，真正发布的版本来自 package.json；不一致会发出旧版本或撞已存在版本
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME 与 package.json 中的版本 $version 不一致"
+            exit 1
+          fi
+
+      # vsce 只支持 npm/yarn：它用 npm 执行 vscode:prepublish，而 pnpm 安装的 Node 不带 npm
+      # 锁到 npm@10（Node 22 对应的大版本），避免未来 npm 大版本要求更高 Node 导致 CI 挂掉
+      - run: pnpm add -g npm@10
 
       # vscode:prepublish 自动执行 check-types + lint + esbuild --production
       - run: pnpm run vsix
 
+      - name: Publish to VS Code Marketplace
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: pnpm exec vsce publish --oidc --packagePath "$(ls *.vsix)"
+
+      - name: Publish to Open VSX Registry
+        if: startsWith(github.ref, 'refs/tags/v')
+        # 可信发布：open-vsx.org → Settings → Trusted Publishers 注册本仓库 + release.yml（环境留空）
+        run: pnpm exec ovsx publish --trusted-publishing "$(ls *.vsix)"
+
+      # 放在最后：任一 registry 发布失败时不留下"有 release 但未上架"的半成品
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
@@ -39,13 +70,3 @@ jobs:
           gh release create "$GITHUB_REF_NAME" "$vsix" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
-
-      - name: Publish to VS Code Marketplace
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: pnpm exec vsce publish --oidc --packagePath "$(ls *.vsix)"
-
-      - name: Publish to Open VSX Registry
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: npx ovsx publish "$(ls *.vsix)"
