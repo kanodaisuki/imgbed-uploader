@@ -184,6 +184,9 @@ export async function runUploads(
         return;
       }
       const item = items[i];
+      if (item === undefined) {
+        return;
+      }
       try {
         const file =
           item.source.type === 'local'

@@ -1,0 +1,11 @@
+{
+  // 生产代码单独开下标越界检查（parse.ts 这类下标/正则密集代码收益明显）；
+  // 测试文件是断言式取值（results[0].ok），加 ! 只会被 no-non-null-assertion 拦下，故排除。
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/test/**"]
+}

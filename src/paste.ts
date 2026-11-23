@@ -48,7 +48,7 @@ function relPath(from: string, to: string): string | null {
   while (
     i < f.length &&
     i < t.length &&
-    f[i].toLowerCase() === t[i].toLowerCase()
+    f[i]?.toLowerCase() === t[i]?.toLowerCase()
   ) {
     i++;
   }

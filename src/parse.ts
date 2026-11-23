@@ -62,13 +62,20 @@ function computeBlockCodeRanges(text: string): Span[] {
   eachLine(text, (start, end, content) => {
     const m = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(content);
     if (open === undefined) {
+      const mark = m?.[1] ?? '';
+      const info = m?.[2] ?? '';
       // 起始行 info string 含反引号则不是围栏
-      if (m && !(m[1][0] === '`' && m[2].includes('`'))) {
-        open = { char: m[1][0], len: m[1].length, start };
+      if (mark !== '' && !(mark.charAt(0) === '`' && info.includes('`'))) {
+        open = { char: mark.charAt(0), len: mark.length, start };
       }
     } else {
       const c = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(content);
-      if (c && c[1][0] === open.char && c[1].length >= open.len) {
+      const mark = c?.[1] ?? '';
+      if (
+        mark !== '' &&
+        mark.charAt(0) === open.char &&
+        mark.length >= open.len
+      ) {
         fences.push([open.start, end]);
         open = undefined;
       }
@@ -221,8 +228,9 @@ function htmlUnescape(s: string): string {
   return s.replace(
     /&(amp|lt|gt|quot|apos|#x[0-9a-fA-F]+|#[0-9]+);/g,
     (all, body: string) => {
-      if (body in HTML_NAMED) {
-        return HTML_NAMED[body];
+      const named = HTML_NAMED[body];
+      if (named !== undefined) {
+        return named;
       }
       const code =
         body[1] === 'x' || body[1] === 'X'
@@ -239,9 +247,9 @@ function classify(url: string): 'local' | 'remote' | 'other' | 'protoRelative' {
     return 'local'; // Windows 盘符优先于 scheme 判定
   }
   const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(url);
-  if (scheme) {
-    const s = scheme[1].toLowerCase();
-    return s === 'http' || s === 'https' ? 'remote' : 'other';
+  const protocol = scheme?.[1]?.toLowerCase();
+  if (protocol !== undefined) {
+    return protocol === 'http' || protocol === 'https' ? 'remote' : 'other';
   }
   if (url.startsWith('//')) {
     return 'protoRelative';
@@ -300,10 +308,10 @@ type DestResult =
 function parseMdDest(text: string, from: number, to: number): DestResult {
   let s = from;
   let e = to;
-  while (s < e && /[ \t\n]/.test(text[s])) {
+  while (s < e && /[ \t\n]/.test(text.charAt(s))) {
     s += 1;
   }
-  while (e > s && /[ \t\n]/.test(text[e - 1])) {
+  while (e > s && /[ \t\n]/.test(text.charAt(e - 1))) {
     e -= 1;
   }
   if (s >= e) {
@@ -335,7 +343,7 @@ function parseMdDest(text: string, from: number, to: number): DestResult {
     return { kind: 'ok', rawStart: s, rawEnd: gt + 1, inner };
   }
   let p = s;
-  while (p < e && !/[ \t\n]/.test(text[p])) {
+  while (p < e && !/[ \t\n]/.test(text.charAt(p))) {
     if (text[p] === '\\') {
       p += 1;
     }
@@ -498,7 +506,7 @@ export function parseImageRefs(text: string): ParseResult {
   function emitHtml(tagStart: number): number {
     let p = tagStart + 4;
     while (p < text.length) {
-      while (p < text.length && /\s/.test(text[p])) {
+      while (p < text.length && /\s/.test(text.charAt(p))) {
         p += 1;
       }
       if (text[p] === '>' || p >= text.length) {
@@ -509,11 +517,11 @@ export function parseImageRefs(text: string): ParseResult {
         continue;
       }
       const nameStart = p;
-      while (p < text.length && !/[\s=/>]/.test(text[p])) {
+      while (p < text.length && !/[\s=/>]/.test(text.charAt(p))) {
         p += 1;
       }
       const name = text.slice(nameStart, p).toLowerCase();
-      while (p < text.length && /[ \t]/.test(text[p])) {
+      while (p < text.length && /[ \t]/.test(text.charAt(p))) {
         p += 1;
       }
       if (text[p] !== '=') {
@@ -524,7 +532,7 @@ export function parseImageRefs(text: string): ParseResult {
         continue;
       }
       p += 1;
-      while (p < text.length && /[ \t]/.test(text[p])) {
+      while (p < text.length && /[ \t]/.test(text.charAt(p))) {
         p += 1;
       }
       if (text[p] === '{') {
@@ -539,7 +547,7 @@ export function parseImageRefs(text: string): ParseResult {
       let valueStart: number;
       let valueEnd: number;
       if (text[p] === '"' || text[p] === "'") {
-        const quote = text[p];
+        const quote = text.charAt(p);
         valueStart = p + 1;
         valueEnd = text.indexOf(quote, valueStart);
         if (valueEnd === -1) {
@@ -548,7 +556,7 @@ export function parseImageRefs(text: string): ParseResult {
         p = valueEnd + 1;
       } else {
         valueStart = p;
-        while (p < text.length && !/[\s"'`=<>]/.test(text[p])) {
+        while (p < text.length && !/[\s"'`=<>]/.test(text.charAt(p))) {
           p += 1;
         }
         valueEnd = p;
