@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # actions 全部按 commit SHA 固定，需要 bot 定期把 SHA 推到最新
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
