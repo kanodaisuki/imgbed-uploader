@@ -151,9 +151,13 @@ export async function upload(
 
   const form = new FormData();
   // 文件名原样进 FormData，不转写不 trim（T2 设计 §3）
+  // @types/node 26 起 Uint8Array 默认按 ArrayBufferLike 参数化，而 BlobPart 只接受
+  // ArrayBuffer 支撑的视图；这里的字节来自 readFile / arrayBuffer / Buffer，实际不会是
+  // SharedArrayBuffer，故断言后交给 Blob（Blob 内部会复制字节）。
+  const bytes = file.data as Uint8Array<ArrayBuffer>;
   form.append(
     'file',
-    new Blob([file.data], { type: mimeOf(file.name) }),
+    new Blob([bytes], { type: mimeOf(file.name) }),
     file.name,
   );
 
