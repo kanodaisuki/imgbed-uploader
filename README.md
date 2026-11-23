@@ -60,6 +60,7 @@
 ## 隐私与安全
 
 - 凭据仅存于 VS Code SecretStorage，不写入 `settings.json`，不随文档或仓库外泄
+- 受限模式（未信任工作区）下只读取用户级设置：`serverUrl`、`customCdn`、渠道、目录、有效期等 9 项设置的工作区值会被忽略，避免不可信仓库把图片发往第三方服务器
 - 远程图像转存的下载请求不携带 Authorization / Cookie / Referer 等凭据，User-Agent 为 `ImgBed-Uploader`
 - 无遥测、无数据收集；除图床上传与远程图下载外无任何网络请求
 

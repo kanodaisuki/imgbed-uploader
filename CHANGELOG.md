@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### 安全
+
+- 声明 `capabilities.untrustedWorkspaces`：受限模式（未信任工作区）下，上传地址、渠道、目录、有效期等 9 项设置只读取用户级值，避免不可信仓库把图片发往第三方服务器
+
 ## [1.0.0] - 2026-11-20
 
 首个正式版，面向 CloudFlare ImgBed v2.7.8 开发。
