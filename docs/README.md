@@ -37,3 +37,5 @@
 | [T9-粘贴上传.md](design/T9-粘贴上传.md) | design/ | T9 方案设计：paste.ts 粘贴接管（内存上传/失败降级落盘/超时取消/文件名生成） | 已冻结（T9 已实现，验收通过） |
 | [T10-远程图像转存.md](design/T10-远程图像转存.md) | design/ | T10 方案设计：download.ts 远程转存（60s 总时限/50 MiB 流式上限/字节嗅探非图片校验/转存文件名） | 已冻结（T10 已实现，单测 17 项通过） |
 | [T11-集成测试.md](design/T11-集成测试.md) | design/ | T11 方案设计：集成测试（mock 图床三 hostname/通知与 OutputChannel 打桩/11 条验收 + 兄弟委托 14 suite） | 已冻结（集成 169 项全绿 + 人工走查通过；裁决已登记，发版就绪） |
+| [T12-多语言支持.md](design/T12-多语言支持.md) | design/ | T12 方案设计：i18n（vscode.l10n + package.nls，英文默认/zh-cn 中文；按钮 label 常量化前置重构、parse reason 改 SkipReason code、en/zh-cn 双 locale 自动化测试） | 已冻结（T12 已实现，en/zh-cn 各 175 项全绿 + L1 守卫 + CI 双 locale 矩阵） |
+| [01-client-download-允许-import-vscode.md](decisions/01-client-download-允许-import-vscode.md) | decisions/ | ADR：client.ts / download.ts 允许 import vscode（仅限 l10n 文案），T2/T10 非 vscode 层约定下调 | 已冻结 |
