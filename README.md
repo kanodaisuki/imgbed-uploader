@@ -1,5 +1,7 @@
 # ImgBed Uploader
 
+[简体中文](#imgbed-uploader) | [English](#english)
+
 一键上传 Markdown / MDX 文档里的图像到自托管的 [CloudFlare ImgBed](https://github.com/MarSeventh/CloudFlare-ImgBed) 图床。具备粘贴截图自动上传，远程图转存，自定义 CDN 回写。
 
 ## 功能
@@ -17,7 +19,7 @@
 
 - **远程图像转存**：开启后把文档中的远程图片下载转存到你的图床；白名单域名保持不动
   ![](https://image.kanochan.net/picx/cG0WsqMN.gif)
-  
+
 - **自定义 CDN 回写**：配置 `customCdn` 后按「CDN + 文件 ID」优先生成链接
 - **省心的批量语义**：重复执行自动跳过已回写链接；部分失败时成功的照常回写、失败的保留原链接并列出原因，一键「重试失败项」；全部替换后一次 Ctrl+Z 完整撤销
 - **测试连接**：1x1 测试 PNG 端到端验证地址 + 凭据 + 渠道，配错早发现
@@ -90,6 +92,108 @@ pnpm run watch        # 监听编译（esbuild + tsc）
 pnpm run compile      # 类型检查 + lint + 构建
 pnpm run test         # 运行测试（首次需下载 VS Code 测试实例）
 pnpm run vsix         # 生产构建并打包 .vsix
+```
+
+## License
+
+MIT
+
+---
+
+# English
+
+# ImgBed Uploader
+
+One-click upload of images in Markdown / MDX documents to a self-hosted [CloudFlare ImgBed](https://github.com/MarSeventh/CloudFlare-ImgBed) image host. Features paste-screenshot auto upload, remote image re-hosting, and custom CDN link rewriting.
+
+## Features
+
+- **One-click upload**: upload all local images in a document (or just the selected ones) and write back the image host links; relative paths are resolved against the document's directory, and the same path is uploaded only once
+  ![](https://image.kanochan.net/picx/Lkx9B27g.gif)
+
+  ![](https://image.kanochan.net/picx/FnwFrljI.gif)
+
+- **Paste upload**: pasting a screenshot automatically uploads it and inserts the link; a failed upload never loses your image (it is saved to the workspace per VS Code's default behavior)
+  ![](https://image.kanochan.net/picx/Jl0eS6Ll.gif)
+
+- **File upload**: upload local images from a file picker or via right-click in the Explorer
+  ![](https://image.kanochan.net/picx/G9qbhuw2.gif)
+
+- **Remote image re-hosting**: when enabled, remote images in the document are downloaded and re-hosted on your image host; whitelisted domains are left untouched
+  ![](https://image.kanochan.net/picx/cG0WsqMN.gif)
+
+- **Custom CDN link rewriting**: with `customCdn` configured, links are generated as "CDN + file ID" first
+- **Worry-free batch semantics**: re-running automatically skips already rewritten links; on partial failure, successes are written back as usual while failures keep their original links with the reasons listed, plus a one-click "Retry failed items"; after a full replacement a single Ctrl+Z undoes everything
+- **Test connection**: end-to-end verification of URL + credentials + channel with a 1x1 test PNG, so misconfiguration shows up early
+
+## Quick Start
+
+Open the extension settings by typing `@ext:KanoChan.imgbed-uploader` in the Settings panel.
+
+1. Fill in the image host base URL `imgbedUploader.serverUrl` (e.g. `https://img.example.com`) in the settings
+2. Press `ctrl` + `shift` + `p` to open the Command Palette and run **"ImgBed Uploader: 设置认证信息" (Set Credentials)** to enter the upload auth code or API Token (your credentials are stored securely in VS Code SecretStorage, never in configuration files)
+3. Run **"ImgBed Uploader: 测试连接" (Test Connection)** to verify connectivity
+4. Open a Markdown / MDX document, right-click → **"上传文档全部本地图像" (Upload All Local Images in Document)**, or click the cloud upload button in the editor title bar
+
+## Commands & Entry Points
+
+| Command                                                    | Entry                                                                       | Description                                                      |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 上传文档全部本地图像 (Upload All Local Images in Document) | Editor context menu, editor title bar button, Command Palette               | Upload all local images in the document and write back the links |
+| 上传选定图片 (Upload Selected Images)                      | Editor context menu (when there is a selection), Command Palette            | Only process image references within the selection               |
+| 上传本地图片 (Upload Local Image)                          | Command Palette (opens a file picker), Explorer context menu on image files | Insert the link at the cursor after uploading                    |
+| 设置认证信息 (Set Credentials)                             | Command Palette                                                             | Enter / update the auth code or API Token                        |
+| 测试连接 (Test Connection)                                 | Command Palette                                                             | End-to-end verification of the image host configuration          |
+
+Paste upload has no command: with `pasteUpload` enabled, just press Ctrl+V to paste an image into a Markdown / MDX document.
+
+## Configuration
+
+| Setting                             | Default    | Description                                                                                         |
+| ----------------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| `imgbedUploader.serverUrl`          | (empty)    | Base URL of the image host site, e.g. `https://img.example.com`                                     |
+| `imgbedUploader.authType`           | `authCode` | Authentication method: upload auth code / API Token / no auth                                       |
+| `imgbedUploader.uploadChannel`      | `telegram` | Upload channel (telegram / cfr2 / s3 / discord / huggingface / webdav)                              |
+| `imgbedUploader.channelName`        | (empty)    | Channel name when there are multiple channels of the same type; leave empty for the server default  |
+| `imgbedUploader.uploadFolder`       | (empty)    | Upload folder (relative path, e.g. `img/test`); leave empty for the root                            |
+| `imgbedUploader.uploadNameType`     | `default`  | File naming: prefix_original name / prefix only / original name only / short link                   |
+| `imgbedUploader.expire`             | (empty)    | File expiration (e.g. `12h`, `7d`, `forever`), subject to server configuration                      |
+| `imgbedUploader.serverCompress`     | On         | Server-side compression (only applies to images on the Telegram channel)                            |
+| `imgbedUploader.autoRetry`          | On         | Automatically switch channels and retry on upload failure                                           |
+| `imgbedUploader.customCdn`          | (empty)    | Custom CDN / URL prefix used to build rewritten links from the file ID; `https://` may be omitted   |
+| `imgbedUploader.uploadRemoteImages` | Off        | Re-host non-whitelisted remote images to the image host on one-click upload                         |
+| `imgbedUploader.remoteWhitelist`    | (empty)    | Remote image domain whitelist (exact hostname match); matching URLs are left untouched              |
+| `imgbedUploader.pasteUpload`        | On         | Pasting an image auto-uploads it and inserts the link; when off, VS Code's default behavior applies |
+
+## Behavior Notes
+
+- Image references inside code blocks (fenced / inline / indented) are not processed; your text is never modified by mistake
+- `./img/a.png`, `img/a.png`, `%20`-encoded paths and similar forms are all resolved against the document's directory
+- Relative paths in unsaved untitled documents cannot be resolved: they go into the failure report with a prompt to save first
+- When an upload is rejected by the server (e.g. format restrictions), the server's error message is shown as-is
+- Triggering the command again while an upload is in progress shows a notice and is ignored; two batches never run concurrently
+
+## Privacy & Security
+
+- Credentials are stored only in VS Code SecretStorage, never written to `settings.json`, so they cannot leak with documents or repositories
+- In Restricted Mode (untrusted workspaces) only user-level settings are read: workspace values of 9 settings — `serverUrl`, `customCdn`, channel, folder, expiration, etc. — are ignored, so an untrusted repository cannot send your images to a third-party server
+- Remote image re-hosting download requests carry no Authorization / Cookie / Referer credentials; the User-Agent is `ImgBed-Uploader`
+- No telemetry, no data collection; no network requests other than image host uploads and remote image downloads
+
+## Requirements
+
+- VS Code `1.146.0` or later
+- Markdown / MDX documents
+- A CloudFlare ImgBed server at **v2.7.8** (this extension is developed against that version and relies on interfaces such as `responseFormat`); other versions are not fully tested and compatibility is not guaranteed (test reports welcome!)
+
+## Development
+
+```bash
+pnpm install          # Install dependencies
+pnpm run watch        # Watch build (esbuild + tsc)
+pnpm run compile      # Type check + lint + build
+pnpm run test         # Run tests (the VS Code test instance is downloaded on first run)
+pnpm run vsix         # Production build and package the .vsix
 ```
 
 ## License
