@@ -16,6 +16,15 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-24.04
+    # T12 L2：en / zh-cn 双 locale 全量矩阵（对照表断言随 locale 切换）
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - locale: en
+            script: test
+          - locale: zh-cn
+            script: test:zh
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,4 +44,4 @@ jobs:
           key: vscode-test-linux-x64-1.147.0
 
       # pretest 会先跑 compile-tests + compile；ubuntu 无显示器，需要 xvfb
-      - run: xvfb-run -a pnpm test
+      - run: xvfb-run -a pnpm ${{ matrix.script }}
