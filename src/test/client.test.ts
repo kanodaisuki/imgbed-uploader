@@ -14,6 +14,12 @@ import {
 } from '../client';
 import { normalize } from '../config';
 import { initSecrets } from '../secrets';
+import { zhCn } from './locale';
+
+// 中英预期文案对照表（T12 §5-S4）：服务端夹具文本不翻（验收 2 豁免），本地后缀按 locale 对照
+const SUFFIX_CHECK_CREDENTIALS = zhCn
+  ? '（请检查认证信息）'
+  : ' (check your credentials)';
 
 suite('client 纯函数', () => {
   const base = normalize({ serverUrl: 'https://img.x' });
@@ -124,16 +130,19 @@ suite('client 纯函数', () => {
       400,
       JSON.stringify({
         code: 'UPLOAD_FORMAT_NOT_ALLOWED',
-        error: '格式不允许',
+        error: 'Format not allowed',
       }),
     );
     assert.ok(err instanceof UploadError);
-    assert.strictEqual(err.message, '格式不允许');
+    assert.strictEqual(err.message, 'Format not allowed');
     assert.strictEqual(err.status, 400);
     assert.strictEqual(err.code, 'UPLOAD_FORMAT_NOT_ALLOWED');
 
-    const authErr = mapError(401, JSON.stringify({ message: '未授权' }));
-    assert.strictEqual(authErr.message, '未授权（请检查认证信息）');
+    const authErr = mapError(401, JSON.stringify({ message: 'Unauthorized' }));
+    assert.strictEqual(
+      authErr.message,
+      'Unauthorized' + SUFFIX_CHECK_CREDENTIALS,
+    );
 
     const htmlErr = mapError(502, '<html>bad gateway</html>');
     assert.ok(htmlErr.message.includes('HTTP 502'));
@@ -184,7 +193,7 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
               400,
               JSON.stringify({
                 code: 'UPLOAD_FORMAT_NOT_ALLOWED',
-                error: '格式不允许',
+                error: 'Format not allowed',
               }),
             );
             break;
@@ -284,7 +293,7 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
     } catch (err) {
       assert.ok(err instanceof UploadError);
       const uploadErr = err as UploadError;
-      assert.strictEqual(uploadErr.message, '格式不允许');
+      assert.strictEqual(uploadErr.message, 'Format not allowed');
       assert.strictEqual(uploadErr.status, 400);
       assert.strictEqual(uploadErr.code, 'UPLOAD_FORMAT_NOT_ALLOWED');
     }
@@ -300,7 +309,10 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
         assert.fail('应当抛出 UploadError');
       } catch (err) {
         assert.ok(err instanceof UploadError);
-        assert.strictEqual((err as UploadError).message, '上传响应格式异常');
+        assert.strictEqual(
+          (err as UploadError).message,
+          zhCn ? '上传响应格式异常' : 'Unexpected upload response format',
+        );
       }
     }
   });
@@ -315,7 +327,11 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
       assert.fail('应当超时');
     } catch (err) {
       assert.ok(err instanceof UploadError);
-      assert.ok((err as UploadError).message.includes('上传超时'));
+      assert.ok(
+        (err as UploadError).message.includes(
+          zhCn ? '上传超时' : 'Upload timed out',
+        ),
+      );
     }
   });
 
@@ -330,7 +346,9 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
       assert.ok(err instanceof UploadError);
       assert.strictEqual(
         (err as UploadError).message,
-        '图床地址无效，请检查 serverUrl 配置',
+        zhCn
+          ? '图床地址无效，请检查 serverUrl 配置'
+          : 'Invalid image host URL; check the serverUrl setting',
       );
       assert.strictEqual((err as UploadError).code, 'INVALID_SERVER_URL');
     }
@@ -344,7 +362,9 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
       assert.fail('应当成功');
     }
     assert.strictEqual(result.url, 'https://pub/file/abc_图 1.png');
-    assert.ok(result.detail.includes('渠道：telegram'));
+    assert.ok(
+      result.detail.includes(zhCn ? '渠道：telegram' : 'channel: telegram'),
+    );
     assert.ok(result.detail.includes(result.url));
     // mock 侧断言请求形态与文件字节（T3 设计 §5）
     assert.ok(lastReq.body.includes('name="file"'));
@@ -376,7 +396,10 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
       assert.fail('应当失败');
     }
     assert.strictEqual(result.status, 401);
-    assert.strictEqual(result.detail, 'Invalid auth code（请检查认证信息）');
+    assert.strictEqual(
+      result.detail,
+      'Invalid auth code' + SUFFIX_CHECK_CREDENTIALS,
+    );
   });
 
   test('testConnection 400：服务端原文 + code 透传', async () => {
@@ -391,7 +414,7 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
     }
     assert.strictEqual(result.status, 400);
     assert.strictEqual(result.code, 'UPLOAD_FORMAT_NOT_ALLOWED');
-    assert.strictEqual(result.detail, '格式不允许');
+    assert.strictEqual(result.detail, 'Format not allowed');
   });
 
   test('testConnection 连接被拒：detail 为「上传失败：…」', async () => {
@@ -408,7 +431,9 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
     if (result.ok) {
       assert.fail('应当失败');
     }
-    assert.ok(result.detail.startsWith('上传失败：'));
+    assert.ok(
+      result.detail.startsWith(zhCn ? '上传失败：' : 'Upload failed: '),
+    );
   });
 
   test('testConnection serverUrl 非法：code=INVALID_SERVER_URL', async () => {
@@ -416,7 +441,12 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
     if (result.ok) {
       assert.fail('应当失败');
     }
-    assert.strictEqual(result.detail, '图床地址无效，请检查 serverUrl 配置');
+    assert.strictEqual(
+      result.detail,
+      zhCn
+        ? '图床地址无效，请检查 serverUrl 配置'
+        : 'Invalid image host URL; check the serverUrl setting',
+    );
     assert.strictEqual(result.code, 'INVALID_SERVER_URL');
   });
 
@@ -434,7 +464,10 @@ suite('client.upload / testConnection 集成（进程内 mock 图床）', () => 
     if (result.ok) {
       assert.fail('应当失败');
     }
-    assert.strictEqual(result.detail, '测试连接失败：boom');
+    assert.strictEqual(
+      result.detail,
+      zhCn ? '测试连接失败：boom' : 'Connection test failed: boom',
+    );
     assert.strictEqual(requestCount, 0);
   });
 

@@ -10,6 +10,16 @@ import {
   runUploads,
   selfHosts,
 } from '../flow';
+import { zhCn } from './locale';
+
+// 中英预期文案对照表（T12 §5-S4）：断言写死双语预期，禁止用 l10n.t 取期望值
+const REASON_REMOTE_SKIP = zhCn
+  ? '远程图像跳过（未开启转存）'
+  : 'Remote image skipped (re-hosting is disabled)';
+const REASON_WHITELIST = zhCn ? '命中白名单跳过' : 'Whitelisted host; skipped';
+const REASON_SELF_HOST = zhCn
+  ? '已回写链接，幂等跳过'
+  : 'Link already written back; skipped';
 
 const BASE = {
   uploadRemoteImages: false,
@@ -87,7 +97,7 @@ suite('flow 远程策略与幂等', () => {
     const plan = planUploads([remoteRef('https://x/a.png', 'x.com')], BASE);
     assert.strictEqual(plan.items.length, 0);
     assert.deepStrictEqual(plan.skipped, [
-      { key: 'https://x/a.png', reason: '远程图像跳过（未开启转存）' },
+      { key: 'https://x/a.png', reason: REASON_REMOTE_SKIP },
     ]);
   });
 
@@ -98,7 +108,7 @@ suite('flow 远程策略与幂等', () => {
       remoteWhitelist: ['x.com'],
     });
     assert.strictEqual(plan.items.length, 0);
-    assert.strictEqual(plan.skipped[0].reason, '命中白名单跳过');
+    assert.strictEqual(plan.skipped[0].reason, REASON_WHITELIST);
   });
 
   test('转存开启 + 非白名单 → 进计划转存', () => {
@@ -129,7 +139,7 @@ suite('flow 远程策略与幂等', () => {
     );
     assert.deepStrictEqual(
       plan.skipped.map((s) => s.reason),
-      ['已回写链接，幂等跳过', '已回写链接，幂等跳过'],
+      [REASON_SELF_HOST, REASON_SELF_HOST],
     );
     assert.deepStrictEqual(
       plan.items.map((i) => i.key),
@@ -149,7 +159,7 @@ suite('flow 远程策略与幂等', () => {
         remoteWhitelist: [' IMG.Shields.IO ', 'example.com'],
       },
     );
-    assert.strictEqual(plan.skipped[0].reason, '命中白名单跳过');
+    assert.strictEqual(plan.skipped[0].reason, REASON_WHITELIST);
     assert.deepStrictEqual(
       plan.items.map((i) => i.key),
       ['https://a.example.com/x.png'],
@@ -263,7 +273,7 @@ suite('flow resolveLocalPath（4.8）', () => {
     const r = resolveLocalPath(undefined, './img/a.png');
     assert.ok(!r.ok);
     if (!r.ok) {
-      assert.ok(r.error.includes('先保存'));
+      assert.ok(r.error.includes(zhCn ? '先保存' : 'save the document first'));
     }
   });
 });
@@ -278,7 +288,8 @@ suite('flow runUploads', () => {
     const io: Io = {
       readLocal: async (p) => {
         if (p.includes('bad')) {
-          throw new Error(`文件不存在或不可读：${p}`);
+          // 夹具文本（非产品文案）：断言验 error 透传，双语同值
+          throw new Error(`file not found or unreadable: ${p}`);
         }
         return new Uint8Array([1]);
       },
@@ -303,7 +314,7 @@ suite('flow runUploads', () => {
     assert.strictEqual(results.filter((r) => r.ok).length, 2);
     assert.ok(!results[1].ok);
     if (!results[1].ok) {
-      assert.ok(results[1].error.includes('文件不存在'));
+      assert.ok(results[1].error.includes('file not found or unreadable'));
     }
     assert.deepStrictEqual(uploaded.sort(), ['a.png', 'c.png']);
   });

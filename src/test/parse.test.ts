@@ -224,7 +224,7 @@ suite('parse 引用式矩阵', () => {
     const res = parse('[r]: my file.png\n\n![a][r]');
     assert.strictEqual(res.refs.length, 0);
     assert.strictEqual(res.skipped.length, 1);
-    assert.ok(res.skipped[0].reason.includes('URL'));
+    assert.strictEqual(res.skipped[0].reason, 'unwrappedSpace');
   });
 
   test('def dest 可疑但无图片引用 → 静默（普通链接不报）', () => {
@@ -287,7 +287,7 @@ suite('parse HTML 矩阵', () => {
     const res = parse('<img src>');
     assert.strictEqual(res.refs.length, 0);
     assert.strictEqual(res.skipped.length, 1);
-    assert.strictEqual(res.skipped[0].reason, 'src 属性无值');
+    assert.strictEqual(res.skipped[0].reason, 'emptySrcAttr');
   });
 
   test('src="" 空值静默跳过', () => {
@@ -385,29 +385,29 @@ suite('parse 可疑跳过', () => {
     const res = parse('![a](my file.png)');
     assert.strictEqual(res.refs.length, 0);
     assert.strictEqual(res.skipped.length, 1);
-    assert.ok(res.skipped[0].reason.includes('空格'));
+    assert.strictEqual(res.skipped[0].reason, 'unwrappedSpace');
   });
 
   test('尖括号未闭合 / 非法残留', () => {
     const a = parse('![a](<p.png")');
     assert.strictEqual(a.skipped.length, 1);
-    assert.ok(a.skipped[0].reason.includes('未闭合'));
+    assert.strictEqual(a.skipped[0].reason, 'unclosedAngleUrl');
     const b = parse('![a](<p.png> xyz)');
     assert.strictEqual(b.skipped.length, 1);
-    assert.ok(b.skipped[0].reason.includes('残留'));
+    assert.strictEqual(b.skipped[0].reason, 'illegalResidue');
   });
 
   test('协议相对 URL 可疑跳过', () => {
     const res = parse('![](//host/a.png)');
     assert.strictEqual(res.refs.length, 0);
     assert.strictEqual(res.skipped.length, 1);
-    assert.ok(res.skipped[0].reason.includes('协议相对'));
+    assert.strictEqual(res.skipped[0].reason, 'protocolRelative');
   });
 
   test('括号未闭合可可疑跳过', () => {
     const res = parse('![a](./x.png');
     assert.strictEqual(res.skipped.length, 1);
-    assert.ok(res.skipped[0].reason.includes('括号'));
+    assert.strictEqual(res.skipped[0].reason, 'unclosedParen');
   });
 
   test('可疑 dest 内部的内层候选照常识别', () => {

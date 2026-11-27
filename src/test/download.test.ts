@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import * as http from 'http';
 import type { AddressInfo } from 'node:net';
 import { downloadRemote, sniffImageExt, transferFileName } from '../download';
+import { zhCn } from './locale';
 
 const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
@@ -216,23 +217,30 @@ suite('downloadRemote 集成（进程内 mock HTTP）', () => {
   test('头撒谎/HTML 页面 → 非图片内容', async () => {
     await assert.rejects(
       () => downloadRemote(url('/html-as-png')),
-      /非图片内容（Content-Type: image\/png）/,
+      zhCn
+        ? /非图片内容（Content-Type: image\/png）/
+        : /Not an image \(Content-Type: image\/png\)/,
     );
     await assert.rejects(
       () => downloadRemote(url('/html')),
-      /非图片内容（Content-Type: text\/html）/,
+      zhCn
+        ? /非图片内容（Content-Type: text\/html）/
+        : /Not an image \(Content-Type: text\/html\)/,
     );
-    await assert.rejects(() => downloadRemote(url('/empty')), /非图片内容/);
+    await assert.rejects(
+      () => downloadRemote(url('/empty')),
+      zhCn ? /非图片内容/ : /Not an image/,
+    );
   });
 
   test('非 2xx → 下载失败：HTTP <status>', async () => {
     await assert.rejects(
       () => downloadRemote(url('/403')),
-      /下载失败：HTTP 403/,
+      zhCn ? /下载失败：HTTP 403/ : /Download failed: HTTP 403/,
     );
     await assert.rejects(
       () => downloadRemote(url('/404')),
-      /下载失败：HTTP 404/,
+      zhCn ? /下载失败：HTTP 404/ : /Download failed: HTTP 404/,
     );
   });
 
@@ -240,7 +248,9 @@ suite('downloadRemote 集成（进程内 mock HTTP）', () => {
     await assert.rejects(
       () => downloadRemote(url('/half')),
       (err: Error) => {
-        assert.ok(err.message.startsWith('下载失败：'));
+        assert.ok(
+          err.message.startsWith(zhCn ? '下载失败：' : 'Download failed: '),
+        );
         assert.ok(!err.message.includes('terminated'));
         return true;
       },
@@ -250,18 +260,20 @@ suite('downloadRemote 集成（进程内 mock HTTP）', () => {
   test('超时：等响应头 / body 卡住都映射为下载超时', async () => {
     await assert.rejects(
       () => downloadRemote(url('/hang-headers'), { timeoutMs: 50 }),
-      /下载超时（60 秒）/,
+      zhCn ? /下载超时（60 秒）/ : /Download timed out \(60 s\)/,
     );
     await assert.rejects(
       () => downloadRemote(url('/hang-body'), { timeoutMs: 50 }),
-      /下载超时（60 秒）/,
+      zhCn ? /下载超时（60 秒）/ : /Download timed out \(60 s\)/,
     );
   });
 
   test('流式上限：chunked 超限 → 远程图像过大', async () => {
     await assert.rejects(
       () => downloadRemote(url('/big'), { maxBytes: 100 }),
-      /远程图像过大（超过 50 MB）/,
+      zhCn
+        ? /远程图像过大（超过 50 MB）/
+        : /Remote image is too large \(over 50 MB\)/,
     );
   });
 
@@ -274,7 +286,7 @@ suite('downloadRemote 集成（进程内 mock HTTP）', () => {
   test('非 http(s) → 远程图像地址无效', async () => {
     await assert.rejects(
       () => downloadRemote('file:///x.png'),
-      /远程图像地址无效/,
+      zhCn ? /远程图像地址无效/ : /Invalid remote image URL/,
     );
   });
 

@@ -8,6 +8,37 @@ import * as vscode from 'vscode';
 import type { ExtensionApi } from '../extension';
 import { type Mock, TEST_PNG, startMock } from './mockImgbed';
 import { type Notifier, stubNotifications } from './notifications';
+import { zhCn } from './locale';
+
+// 中英预期文案对照表（T12 §5-S4）：写死双语预期，禁止用 l10n.t/BTN 取期望值
+const BTN_RETRY = zhCn ? '重试失败项' : 'Retry failed items';
+const BTN_RESET = zhCn ? '重新设置认证信息' : 'Update credentials';
+const BTN_RETEST = zhCn ? '重新测试' : 'Test again';
+const BTN_SET = zhCn ? '设置认证信息' : 'Set Credentials';
+const REASON_SELF_HOST = zhCn
+  ? '已回写链接，幂等跳过'
+  : 'Link already written back; skipped';
+const REASON_WHITELIST = zhCn ? '命中白名单跳过' : 'Whitelisted host; skipped';
+const REASON_REMOTE_SKIP = zhCn
+  ? '远程图像跳过（未开启转存）'
+  : 'Remote image skipped (re-hosting is disabled)';
+const PREFIX_FAILED = zhCn ? '失败：' : 'Failed: ';
+const MSG_UNSAVED = zhCn
+  ? '未保存文档无法解析相对路径，请先保存文档'
+  : 'Cannot resolve a relative path in an unsaved document; save the document first';
+const MSG_CLOSED = zhCn
+  ? 'ImgBed Uploader：文档已关闭，链接未插入'
+  : 'ImgBed Uploader: The document has been closed; links were not inserted';
+const MSG_NO_DOC = zhCn
+  ? 'ImgBed Uploader：请先打开 Markdown / MDX 文档'
+  : 'ImgBed Uploader: Open a Markdown / MDX document first';
+const MSG_NO_CREDENTIALS = zhCn
+  ? '未配置认证信息'
+  : 'Credentials are not configured';
+const DL_403 = zhCn ? '下载失败：HTTP 403' : 'Download failed: HTTP 403';
+const SUFFIX_CHECK_CREDENTIALS = zhCn
+  ? '（请检查认证信息）'
+  : ' (check your credentials)';
 
 suite('T11 集成测试（mock 图床端到端）', () => {
   let mock: Mock;
@@ -41,7 +72,9 @@ suite('T11 集成测试（mock 图床端到端）', () => {
   const cdn = (name: string): string =>
     `http://localhost:${mock.port}/cdn/${name}`;
   const summary = (s: number, f: number, k: number): string =>
-    `ImgBed Uploader：成功 ${s} 项、失败 ${f} 项、跳过 ${k} 项`;
+    zhCn
+      ? `ImgBed Uploader：成功 ${s} 项、失败 ${f} 项、跳过 ${k} 项`
+      : `ImgBed Uploader: ${s} succeeded, ${f} failed, ${k} skipped`;
   const uploadAll = (): Thenable<unknown> =>
     vscode.commands.executeCommand('imgbed-uploader.uploadAll');
 
@@ -210,7 +243,7 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       assert.ok(info, '应有成功 4 跳过 1 的汇总通知');
       assert.strictEqual(info.kind, 'info');
       assert.deepStrictEqual(info.buttons, []);
-      assert.ok(notify.lines.some((l) => l.includes('命中白名单跳过')));
+      assert.ok(notify.lines.some((l) => l.includes(REASON_WHITELIST)));
     });
   });
 
@@ -244,14 +277,14 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       const warn = notify.calls.find((c) => c.message === summary(2, 1, 0));
       assert.ok(warn, '应有成功 2 失败 1 的汇总通知');
       assert.strictEqual(warn.kind, 'warn');
-      assert.deepStrictEqual(warn.buttons, ['重试失败项']);
+      assert.deepStrictEqual(warn.buttons, [BTN_RETRY]);
       assert.ok(
         notify.lines.some(
-          (l) => l.includes('失败：') && l.includes('格式不允许'),
+          (l) => l.includes(PREFIX_FAILED) && l.includes('格式不允许'),
         ),
       );
 
-      await notify.click(summary(2, 1, 0), '重试失败项');
+      await notify.click(summary(2, 1, 0), BTN_RETRY);
       await waitUntil(() => mock.uploadCount() === 4, '重试恰补传 1 次');
       await waitUntil(
         () => editor.document.getText().includes(cdn('b.png')),
@@ -318,7 +351,7 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       assert.strictEqual(editor.document.getText(), after);
       const info = notify.calls.find((c) => c.message === summary(0, 0, 5));
       assert.ok(info, '第二次应报全跳过');
-      assert.ok(notify.lines.some((l) => l.includes('已回写链接，幂等跳过')));
+      assert.ok(notify.lines.some((l) => l.includes(REASON_SELF_HOST)));
     });
   });
 
@@ -372,8 +405,11 @@ suite('T11 集成测试（mock 图床端到端）', () => {
 
       const err = notify.calls.find((c) => c.kind === 'error');
       assert.ok(err, '应有错误通知');
-      assert.strictEqual(err.message, 'Invalid auth code（请检查认证信息）');
-      assert.deepStrictEqual(err.buttons, ['重新测试', '重新设置认证信息']);
+      assert.strictEqual(
+        err.message,
+        'Invalid auth code' + SUFFIX_CHECK_CREDENTIALS,
+      );
+      assert.deepStrictEqual(err.buttons, [BTN_RETEST, BTN_RESET]);
     });
 
     test('② 未配置凭据：弹引导且图床零请求', async () => {
@@ -385,7 +421,7 @@ suite('T11 集成测试（mock 图床端到端）', () => {
 
       const p = uploadAll();
       await Promise.race([
-        notify.click('未配置认证信息'),
+        notify.click(MSG_NO_CREDENTIALS),
         (async () => {
           await new Promise((resolve) => setTimeout(resolve, 3000));
           throw new Error(
@@ -405,11 +441,11 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       await p;
 
       const warn = notify.calls.find((c) =>
-        c.message.includes('未配置认证信息'),
+        c.message.includes(MSG_NO_CREDENTIALS),
       );
       assert.ok(warn, '应有未配置认证信息引导');
       assert.strictEqual(warn.kind, 'warn');
-      assert.deepStrictEqual(warn.buttons, ['设置认证信息']);
+      assert.deepStrictEqual(warn.buttons, [BTN_SET]);
       assert.strictEqual(mock.requests.length, 0);
     });
   });
@@ -433,7 +469,7 @@ suite('T11 集成测试（mock 图床端到端）', () => {
 
       assert.strictEqual(editor.document.getText(), '![x](./img/bad.png)');
       const fails = notify.lines.filter(
-        (l) => l.includes('失败：') && l.includes('格式不允许'),
+        (l) => l.includes(PREFIX_FAILED) && l.includes('格式不允许'),
       );
       assert.strictEqual(fails.length, 1, '明细应有且仅有一条失败原因');
     });
@@ -504,7 +540,7 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       await uploadAll();
       assert.strictEqual(mock.uploadCount(), 2);
       assert.strictEqual(editor.document.getText(), after);
-      assert.ok(notify.lines.some((l) => l.includes('已回写链接，幂等跳过')));
+      assert.ok(notify.lines.some((l) => l.includes(REASON_SELF_HOST)));
 
       // 换 host：自识别失效，落远程跳过（T8 §6 边界显式钉住）
       await configure({
@@ -514,9 +550,7 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       await uploadAll();
       assert.strictEqual(mock.uploadCount(), 2);
       assert.strictEqual(editor.document.getText(), after);
-      assert.ok(
-        notify.lines.some((l) => l.includes('远程图像跳过（未开启转存）')),
-      );
+      assert.ok(notify.lines.some((l) => l.includes(REASON_REMOTE_SKIP)));
     });
   });
 
@@ -536,12 +570,8 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       const warn = notify.calls.find((c) => c.message === summary(0, 1, 0));
       assert.ok(warn, '应有失败 1 的汇总通知');
       assert.strictEqual(warn.kind, 'warn');
-      assert.deepStrictEqual(warn.buttons, ['重试失败项']);
-      assert.ok(
-        notify.lines.some((l) =>
-          l.includes('未保存文档无法解析相对路径，请先保存文档'),
-        ),
-      );
+      assert.deepStrictEqual(warn.buttons, [BTN_RETRY]);
+      assert.ok(notify.lines.some((l) => l.includes(MSG_UNSAVED)));
     });
   });
 
@@ -560,8 +590,8 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       assert.strictEqual(editor.document.getText(), text);
       const warn = notify.calls.find((c) => c.message === summary(0, 1, 0));
       assert.ok(warn, '应有失败 1 的汇总通知');
-      assert.deepStrictEqual(warn.buttons, ['重试失败项']);
-      assert.ok(notify.lines.some((l) => l.includes('下载失败：HTTP 403')));
+      assert.deepStrictEqual(warn.buttons, [BTN_RETRY]);
+      assert.ok(notify.lines.some((l) => l.includes(DL_403)));
     });
   });
 
@@ -659,9 +689,7 @@ suite('T11 集成测试（mock 图床端到端）', () => {
       await p;
       await poll;
 
-      const warn = notify.calls.find(
-        (c) => c.message === 'ImgBed Uploader：文档已关闭，链接未插入',
-      );
+      const warn = notify.calls.find((c) => c.message === MSG_CLOSED);
       assert.ok(
         warn,
         `应有文档已关闭提示；诊断 closed=${editor.document.isClosed} ` +
@@ -685,9 +713,7 @@ suite('T11 集成测试（mock 图床端到端）', () => {
         u,
       ]);
 
-      const info = notify.calls.find(
-        (c) => c.message === 'ImgBed Uploader：请先打开 Markdown / MDX 文档',
-      );
+      const info = notify.calls.find((c) => c.message === MSG_NO_DOC);
       assert.ok(info, '应有请先打开 Markdown 提示');
       assert.strictEqual(mock.uploadCount(), 0);
     });
