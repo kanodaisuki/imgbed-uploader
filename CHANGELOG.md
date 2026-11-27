@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-27
+
+### 新增
+
+- **中英双语**：界面全面本地化（命令、设置描述、通知、按钮、进度、报告），英文为默认语言；VS Code 显示语言为 `zh-cn` 时显示中文，其它语言环境显示英文（切换显示语言随 VS Code 重启生效）
+
 ### 安全
 
 - 声明 `capabilities.untrustedWorkspaces`：受限模式（未信任工作区）下，上传地址、渠道、目录、有效期等 9 项设置只读取用户级值，避免不可信仓库把图片发往第三方服务器
@@ -31,5 +37,6 @@
 - 含空格的文件名回写后 URL 值含空格（Markdown 中由 `<>` 包装、链接可用；复制到别处使用时需自行百分号编码）
 - 未保存的 untitled 文档中相对路径无法解析，该引用进入失败报告并提示先保存
 
-[Unreleased]: https://github.com/kanodaisuki/imgbed-uploader/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/kanodaisuki/imgbed-uploader/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/kanodaisuki/imgbed-uploader/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kanodaisuki/imgbed-uploader/tree/v1.0.0
