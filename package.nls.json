@@ -1,0 +1,22 @@
+{
+  "extension.description": "One-click upload of local images in Markdown / MDX documents to a CloudFlare ImgBed image host, with links written back into the document. Paste-screenshot auto upload, remote image re-hosting, and custom CDN link rewriting.",
+  "workspaceTrust.description": "Settings such as the upload URL and channel can be overridden by the workspace; in Restricted Mode only user-level settings are read, so an untrusted repository cannot send your images to a third-party server.",
+  "cmd.uploadAll": "Upload All Local Images in Document",
+  "cmd.uploadSelected": "Upload Selected Images",
+  "cmd.uploadLocal": "Upload Local Image",
+  "cmd.setCredentials": "Set Credentials",
+  "cmd.testConnection": "Test Connection",
+  "config.imgbedUploader.serverUrl.description": "Image host base URL, e.g. https://img.example.com",
+  "config.imgbedUploader.authType.description": "Authentication method: upload auth code / API Token (requires the upload permission) / no auth (when the server has user-side auth disabled). Credentials are entered via the \"Set Credentials\" command and stored in SecretStorage",
+  "config.imgbedUploader.uploadChannel.description": "Upload channel",
+  "config.imgbedUploader.channelName.description": "Channel name when multiple channels of the same type are configured; leave empty for the server default",
+  "config.imgbedUploader.uploadFolder.description": "Upload folder (relative path, e.g. img/test); leave empty for the root",
+  "config.imgbedUploader.uploadNameType.description": "File naming: prefix_original name / prefix only / original name only / short link",
+  "config.imgbedUploader.expire.description": "File expiration (e.g. 12h, 7d, forever); only applies when the server enables expiration and allows uploaders to choose, otherwise ignored",
+  "config.imgbedUploader.serverCompress.description": "Server-side compression (only applies to images on the Telegram channel)",
+  "config.imgbedUploader.autoRetry.description": "Automatically switch channels and retry on upload failure",
+  "config.imgbedUploader.customCdn.description": "Custom CDN / URL prefix (e.g. https://cdn.example.com/file/); https:// may be omitted (auto-completed); CDNs that only support http must write http:// explicitly",
+  "config.imgbedUploader.uploadRemoteImages.description": "Re-host remote images when uploading a document in one click: images not in the whitelist are downloaded, re-uploaded to the image host, and rewritten",
+  "config.imgbedUploader.remoteWhitelist.description": "Remote image domain whitelist (e.g. img.shields.io); matching URLs are left untouched; exact match on the URL hostname",
+  "config.imgbedUploader.pasteUpload.description": "Pasting an image into a Markdown / MDX document auto-uploads it to the image host and inserts the link; when off, VS Code's default behavior applies"
+}

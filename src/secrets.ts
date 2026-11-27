@@ -11,7 +11,7 @@ export function initSecrets(secrets: vscode.SecretStorage): void {
 
 function store(): vscode.SecretStorage {
   if (secretStorage === undefined) {
-    throw new Error('SecretStorage 尚未初始化');
+    throw new Error(vscode.l10n.t('SecretStorage is not initialized'));
   }
   return secretStorage;
 }

@@ -1,5 +1,7 @@
-// T10 设计：远程图像转存下载。纯 IO 模块，不 import vscode。
+// T10 设计：远程图像转存下载。IO 模块（T12 起 import vscode 仅用于 l10n 文案）。
 // GET → 60s 总时限 → 50 MiB 流式上限 → 字节嗅探 → 转存文件名（设计 §2.2-§2.4）。
+
+import * as vscode from 'vscode';
 
 export type ImageExt =
   'png' | 'jpg' | 'gif' | 'webp' | 'avif' | 'bmp' | 'ico' | 'svg';
@@ -10,7 +12,7 @@ const TIMEOUT_MS = 60_000;
 const MAX_BYTES = 50 * 1024 * 1024;
 const SNIFF_BYTES = 512;
 const MAX_NAME_CODE_POINTS = 100;
-const TOO_LARGE = '远程图像过大（超过 50 MB）';
+const TOO_LARGE = vscode.l10n.t('Remote image is too large (over 50 MB)');
 
 class TooLargeError extends Error {}
 
@@ -125,7 +127,7 @@ export function transferFileName(url: string, ext: ImageExt): string {
 
 function mapNetworkError(err: unknown): Error {
   if (err instanceof Error && err.name === 'TimeoutError') {
-    return new Error('下载超时（60 秒）');
+    return new Error(vscode.l10n.t('Download timed out (60 s)'));
   }
   const cause = err instanceof Error ? err.cause : undefined;
   const detail =
@@ -134,12 +136,15 @@ function mapNetworkError(err: unknown): Error {
       : err instanceof Error
         ? err.message
         : String(err);
-  return new Error(`下载失败：${detail}`);
+  return new Error(vscode.l10n.t('Download failed: {0}', detail));
 }
 
 function nonImageMessage(res: Response): string {
   const type = (res.headers.get('content-type') ?? '').trim().slice(0, 100);
-  return `非图片内容（Content-Type: ${type === '' ? '（无）' : type}）`;
+  return vscode.l10n.t(
+    'Not an image (Content-Type: {0})',
+    type === '' ? vscode.l10n.t('(none)') : type,
+  );
 }
 
 async function cancelBody(res: Response): Promise<void> {
@@ -191,10 +196,10 @@ export async function downloadRemote(
   try {
     parsed = new URL(url);
   } catch {
-    throw new Error('远程图像地址无效');
+    throw new Error(vscode.l10n.t('Invalid remote image URL'));
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error('远程图像地址无效');
+    throw new Error(vscode.l10n.t('Invalid remote image URL'));
   }
 
   const timeoutMs = opts?.timeoutMs ?? TIMEOUT_MS;
@@ -213,7 +218,7 @@ export async function downloadRemote(
 
   if (!res.ok) {
     await cancelBody(res);
-    throw new Error(`下载失败：HTTP ${res.status}`);
+    throw new Error(vscode.l10n.t('Download failed: HTTP {0}', res.status));
   }
 
   // 有 Content-Encoding 时该头是压缩长度，不能用于早失败（设计 §2.2）

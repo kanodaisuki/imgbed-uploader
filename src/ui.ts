@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { type Config, getConfig } from './config';
 import { hasCredential } from './secrets';
+import { BTN } from './strings';
 
 // 首次使用引导 + 上传前置检查（需求 4.10，T1 设计 §2.4）。
 // 不 import commands.ts：引导中用 executeCommand 字符串触发，避免循环依赖。
@@ -11,10 +12,12 @@ export async function ensureReady(
 
   if (config.serverUrl === '') {
     const action = await vscode.window.showWarningMessage(
-      'ImgBed Uploader：未配置图床地址（imgbedUploader.serverUrl）',
-      '打开设置',
+      vscode.l10n.t(
+        'ImgBed Uploader: Image host URL is not configured (imgbedUploader.serverUrl)',
+      ),
+      BTN.openSettings,
     );
-    if (action === '打开设置') {
+    if (action === BTN.openSettings) {
       void vscode.commands.executeCommand(
         'workbench.action.openSettings',
         'imgbedUploader.serverUrl',
@@ -25,10 +28,12 @@ export async function ensureReady(
 
   if (config.authType !== 'none' && !(await hasCredential())) {
     const action = await vscode.window.showWarningMessage(
-      'ImgBed Uploader：未配置认证信息（上传认证码 / API Token）',
-      '设置认证信息',
+      vscode.l10n.t(
+        'ImgBed Uploader: Credentials are not configured (upload auth code / API Token)',
+      ),
+      BTN.setCredentials,
     );
-    if (action === '设置认证信息') {
+    if (action === BTN.setCredentials) {
       void vscode.commands.executeCommand('imgbed-uploader.setCredentials');
     }
     return undefined;
@@ -41,7 +46,9 @@ export async function ensureReady(
 let uploading = false;
 export async function withUploadLock(body: () => Promise<void>): Promise<void> {
   if (uploading) {
-    void vscode.window.showInformationMessage('ImgBed Uploader：上传进行中');
+    void vscode.window.showInformationMessage(
+      vscode.l10n.t('ImgBed Uploader: An upload is already in progress'),
+    );
     return;
   }
   uploading = true;
@@ -70,18 +77,23 @@ export function showReport(
     channel.appendLine(line);
   }
 
-  const text = `ImgBed Uploader：成功 ${summary.succeeded} 项、失败 ${summary.failed} 项、跳过 ${summary.skipped} 项`;
+  const text = vscode.l10n.t(
+    'ImgBed Uploader: {0} succeeded, {1} failed, {2} skipped',
+    summary.succeeded,
+    summary.failed,
+    summary.skipped,
+  );
   const buttons: string[] = [];
   if (opts.retry !== undefined && opts.retry.keys.length > 0) {
-    buttons.push('重试失败项');
+    buttons.push(BTN.retryFailed);
   }
   if (opts.authError) {
-    buttons.push('重新设置认证信息');
+    buttons.push(BTN.resetCredentials);
   }
   const onAction = (action: string | undefined): void => {
-    if (action === '重试失败项' && opts.retry !== undefined) {
+    if (action === BTN.retryFailed && opts.retry !== undefined) {
       void opts.retry.run(opts.retry.keys);
-    } else if (action === '重新设置认证信息') {
+    } else if (action === BTN.resetCredentials) {
       void vscode.commands.executeCommand('imgbed-uploader.setCredentials');
     }
   };

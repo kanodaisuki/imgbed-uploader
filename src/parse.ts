@@ -14,7 +14,18 @@ export type ImageRef = {
   useSpans?: { start: number; end: number }[]; // refdef 专用（设计 §2.4）
 };
 
-export type Skipped = { start: number; end: number; reason: string };
+// T12：reason 稳定 code（联合类型），显示文本在 strings.ts 的 REASON_TEXT 映射。
+// 纯函数模块保持不 import vscode（PLAN §1），断言与语言无关。
+export type SkipReason =
+  | 'unclosedAngleUrl'
+  | 'illegalResidue'
+  | 'unwrappedSpace'
+  | 'protocolRelative'
+  | 'unparsableUrl'
+  | 'emptySrcAttr'
+  | 'unclosedParen';
+
+export type Skipped = { start: number; end: number; reason: SkipReason };
 
 export type ParseResult = { refs: ImageRef[]; skipped: Skipped[] };
 
@@ -302,7 +313,7 @@ function isTitle(s: string): boolean {
 type DestResult =
   | { kind: 'ok'; rawStart: number; rawEnd: number; inner: string }
   | { kind: 'empty'; start: number; end: number }
-  | { kind: 'suspicious'; start: number; end: number; reason: string };
+  | { kind: 'suspicious'; start: number; end: number; reason: SkipReason };
 
 // markdown 候选的 dest 解析：title 剥离 → <> → 裸路径
 function parseMdDest(text: string, from: number, to: number): DestResult {
@@ -324,7 +335,7 @@ function parseMdDest(text: string, from: number, to: number): DestResult {
         kind: 'suspicious',
         start: s,
         end: e,
-        reason: '尖括号 URL 未闭合',
+        reason: 'unclosedAngleUrl',
       };
     }
     const inner = text.slice(s + 1, gt);
@@ -337,7 +348,7 @@ function parseMdDest(text: string, from: number, to: number): DestResult {
         kind: 'suspicious',
         start: s,
         end: e,
-        reason: 'URL 后存在非法残留',
+        reason: 'illegalResidue',
       };
     }
     return { kind: 'ok', rawStart: s, rawEnd: gt + 1, inner };
@@ -355,7 +366,7 @@ function parseMdDest(text: string, from: number, to: number): DestResult {
       kind: 'suspicious',
       start: s,
       end: e,
-      reason: 'URL 含未包裹空格或非法残留',
+      reason: 'unwrappedSpace',
     };
   }
   return { kind: 'ok', rawStart: s, rawEnd: p, inner: text.slice(s, p) };
@@ -367,7 +378,7 @@ type Target =
   | { type: 'local'; path: string; key: string }
   | { type: 'remote'; url: string; host: string; key: string }
   | { type: 'silent' }
-  | { type: 'suspicious'; reason: string };
+  | { type: 'suspicious'; reason: SkipReason };
 
 function resolveTarget(rawInner: string, html: boolean): Target {
   const cleaned = html ? htmlUnescape(rawInner) : mdUnescape(rawInner);
@@ -376,14 +387,14 @@ function resolveTarget(rawInner: string, html: boolean): Target {
     return { type: 'silent' };
   }
   if (kind === 'protoRelative') {
-    return { type: 'suspicious', reason: '协议相对 URL 暂不支持' };
+    return { type: 'suspicious', reason: 'protocolRelative' };
   }
   if (kind === 'remote') {
     try {
       const u = new URL(cleaned);
       return { type: 'remote', url: cleaned, host: u.hostname, key: cleaned };
     } catch {
-      return { type: 'suspicious', reason: 'URL 无法解析' };
+      return { type: 'suspicious', reason: 'unparsableUrl' };
     }
   }
   // local：截断 ?/# 后 decode 容错（设计 §2.3 步 5）
@@ -526,7 +537,7 @@ export function parseImageRefs(text: string): ParseResult {
       }
       if (text[p] !== '=') {
         if (name === 'src') {
-          skipped.push({ start: nameStart, end: p, reason: 'src 属性无值' });
+          skipped.push({ start: nameStart, end: p, reason: 'emptySrcAttr' });
           return p;
         }
         continue;
@@ -642,7 +653,7 @@ export function parseImageRefs(text: string): ParseResult {
           skipped.push({
             start: i,
             end: lineEnd === -1 ? text.length : lineEnd,
-            reason: '括号未闭合',
+            reason: 'unclosedParen',
           });
           i = after + 1;
           continue;

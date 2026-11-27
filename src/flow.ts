@@ -9,6 +9,7 @@ import { UploadError, upload as clientUpload } from './client';
 import { downloadRemote as downloadImage } from './download';
 import { type ImageRef, parseImageRefs } from './parse';
 import { buildReplacements, markdownText } from './rewrite';
+import { REASON_TEXT } from './strings';
 import { ensureReady, showReport, withUploadLock } from './ui';
 
 // ---------- 数据结构（设计 §3） ----------
@@ -103,11 +104,11 @@ export function planUploads(
       const host = ref.target.host.trim().toLowerCase();
       let reason: string | undefined;
       if (opts.selfHosts.includes(host)) {
-        reason = '已回写链接，幂等跳过';
+        reason = vscode.l10n.t('Link already written back; skipped');
       } else if (!opts.uploadRemoteImages) {
-        reason = '远程图像跳过（未开启转存）';
+        reason = vscode.l10n.t('Remote image skipped (re-hosting is disabled)');
       } else if (isWhitelisted(host, opts.remoteWhitelist)) {
-        reason = '命中白名单跳过';
+        reason = vscode.l10n.t('Whitelisted host; skipped');
       }
       if (reason !== undefined) {
         if (!skipped.has(ref.key)) {
@@ -148,7 +149,12 @@ export function resolveLocalPath(
     return { ok: true, path: path.normalize(p) };
   }
   if (docDir === undefined) {
-    return { ok: false, error: '未保存文档无法解析相对路径，请先保存文档' };
+    return {
+      ok: false,
+      error: vscode.l10n.t(
+        'Cannot resolve a relative path in an unsaved document; save the document first',
+      ),
+    };
   }
   return { ok: true, path: path.resolve(docDir, p) };
 }
@@ -309,8 +315,10 @@ export async function uploadDocument(
     ) {
       void vscode.window.showInformationMessage(
         sel === undefined
-          ? 'ImgBed Uploader：未找到图像引用'
-          : 'ImgBed Uploader：选区未找到图像引用',
+          ? vscode.l10n.t('ImgBed Uploader: No image references found')
+          : vscode.l10n.t(
+              'ImgBed Uploader: No image references found in the selection',
+            ),
       );
       return;
     }
@@ -321,7 +329,10 @@ export async function uploadDocument(
     const results = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: `ImgBed Uploader：正在上传图片（共 ${plan.items.length} 项）`,
+        title: vscode.l10n.t(
+          'ImgBed Uploader: Uploading images ({0} items)',
+          plan.items.length,
+        ),
         cancellable: true,
       },
       (progress, token) =>
@@ -338,7 +349,9 @@ export async function uploadDocument(
                   toUri(doc.uri, resolved.path),
                 );
               } catch {
-                throw new Error(`文件不存在或不可读：${p}`);
+                throw new Error(
+                  vscode.l10n.t('File does not exist or is unreadable: {0}', p),
+                );
               }
             },
             // T10：远程转存（白名单/自识别已在 planUploads 判定，这里只负责下载）
@@ -359,7 +372,9 @@ export async function uploadDocument(
           },
           {
             onProgress: (d, t) =>
-              progress.report({ message: `第 ${d}/${t} 张` }),
+              progress.report({
+                message: vscode.l10n.t('Image {0}/{1}', d, t),
+              }),
             isCancelled: () => token.isCancellationRequested,
           },
         ),
@@ -402,23 +417,35 @@ export async function uploadDocument(
     for (const r of results) {
       if (r.ok) {
         const n = rewriteCounts.get(r.key) ?? 0;
+        // T12 规约 2：嵌套模板拍平成 {0}{1}{2} 单句，后缀为完整从句占位
         details.push(
-          `成功：${r.key} → ${r.url}${n > 1 ? `（回写 ${n} 处）` : ''}`,
+          vscode.l10n.t(
+            'Succeeded: {0} → {1}{2}',
+            r.key,
+            r.url,
+            n > 1 ? vscode.l10n.t(' (rewrote {0} places)', n) : '',
+          ),
         );
       } else {
-        details.push(`失败：${r.key} — ${r.error}`);
+        details.push(vscode.l10n.t('Failed: {0} — {1}', r.key, r.error));
       }
     }
     for (const s of plan.skipped) {
-      details.push(`跳过：${s.key} — ${s.reason}`);
+      details.push(vscode.l10n.t('Skipped: {0} — {1}', s.key, s.reason));
     }
     const notStarted = plan.items.length - results.length;
     if (notStarted > 0) {
-      details.push(`跳过：${notStarted} 项未开始（已取消）`);
+      details.push(
+        vscode.l10n.t('Skipped: {0} items not started (cancelled)', notStarted),
+      );
     }
     for (const s of suspiciousInScope) {
       details.push(
-        `可疑：第 ${doc.positionAt(s.start).line + 1} 行 — ${s.reason}`,
+        vscode.l10n.t(
+          'Suspicious: line {0} — {1}',
+          doc.positionAt(s.start).line + 1,
+          REASON_TEXT[s.reason],
+        ),
       );
     }
     const failedKeys = results.filter((r) => !r.ok).map((r) => r.key);
@@ -473,7 +500,10 @@ export async function uploadLocalFiles(
     const results = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: `ImgBed Uploader：正在上传图片（共 ${items.length} 项）`,
+        title: vscode.l10n.t(
+          'ImgBed Uploader: Uploading images ({0} items)',
+          items.length,
+        ),
         cancellable: true,
       },
       (progress, token) =>
@@ -483,16 +513,22 @@ export async function uploadLocalFiles(
             readLocal: async (p) => {
               const uri = uriByPath.get(p);
               if (uri === undefined) {
-                throw new Error(`文件不存在或不可读：${p}`);
+                throw new Error(
+                  vscode.l10n.t('File does not exist or is unreadable: {0}', p),
+                );
               }
               try {
                 return await vscode.workspace.fs.readFile(uri);
               } catch {
-                throw new Error(`文件不存在或不可读：${p}`);
+                throw new Error(
+                  vscode.l10n.t('File does not exist or is unreadable: {0}', p),
+                );
               }
             },
             downloadRemote: async () => {
-              throw new Error('不适用（FR-4 仅本地文件）');
+              throw new Error(
+                vscode.l10n.t('Not applicable (FR-4 is for local files only)'),
+              );
             },
             upload: async (file) => {
               try {
@@ -510,7 +546,9 @@ export async function uploadLocalFiles(
           },
           {
             onProgress: (d, t) =>
-              progress.report({ message: `第 ${d}/${t} 张` }),
+              progress.report({
+                message: vscode.l10n.t('Image {0}/{1}', d, t),
+              }),
             isCancelled: () => token.isCancellationRequested,
           },
           1, // FR-4「逐个上传」（T7 §2.3）
@@ -530,7 +568,9 @@ export async function uploadLocalFiles(
     // 插入段（T7 §2.2）：isClosed 关卡 → 插入时取值 → planFileInsert → applyEdit 同步原子段，不得夹 await
     if (doc.isClosed) {
       void vscode.window.showWarningMessage(
-        'ImgBed Uploader：文档已关闭，链接未插入',
+        vscode.l10n.t(
+          'ImgBed Uploader: The document has been closed; links were not inserted',
+        ),
       );
     } else if (links.length > 0) {
       const plan = planFileInsert(
@@ -550,11 +590,15 @@ export async function uploadLocalFiles(
     const details: string[] = [];
     for (const r of results) {
       details.push(
-        r.ok ? `成功：${r.key} → ${r.url}` : `失败：${r.key} — ${r.error}`,
+        r.ok
+          ? vscode.l10n.t('Succeeded: {0} → {1}', r.key, r.url)
+          : vscode.l10n.t('Failed: {0} — {1}', r.key, r.error),
       );
     }
     if (notStarted > 0) {
-      details.push(`跳过：${notStarted} 项未开始（已取消）`);
+      details.push(
+        vscode.l10n.t('Skipped: {0} items not started (cancelled)', notStarted),
+      );
     }
     const failed = results.filter((r) => !r.ok).length;
     showReport(
@@ -569,7 +613,9 @@ export async function uploadLocalFiles(
                   // 重试前置关卡（T7 §2.5）：不为已关闭文档白传
                   if (editor.document.isClosed) {
                     void vscode.window.showWarningMessage(
-                      'ImgBed Uploader：文档已关闭，请重新执行命令',
+                      vscode.l10n.t(
+                        'ImgBed Uploader: The document has been closed; run the command again',
+                      ),
                     );
                     return;
                   }

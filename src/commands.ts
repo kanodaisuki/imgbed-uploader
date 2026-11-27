@@ -3,11 +3,14 @@ import { testConnection } from './client';
 import { uploadDocument, uploadLocalFiles } from './flow';
 import { IMAGE_EXTENSIONS } from './parse';
 import { setCredential } from './secrets';
+import { BTN } from './strings';
 import { ensureReady } from './ui';
 
 async function promptCredential(): Promise<void> {
   const input = await vscode.window.showInputBox({
-    prompt: '输入上传认证码或 API Token（保存到 VS Code SecretStorage）',
+    prompt: vscode.l10n.t(
+      'Enter the upload auth code or API Token (stored in VS Code SecretStorage)',
+    ),
     password: true,
     ignoreFocusOut: true,
   });
@@ -16,7 +19,9 @@ async function promptCredential(): Promise<void> {
     return;
   }
   await setCredential(input);
-  void vscode.window.showInformationMessage('ImgBed Uploader：认证信息已保存');
+  void vscode.window.showInformationMessage(
+    vscode.l10n.t('ImgBed Uploader: Credentials saved'),
+  );
 }
 
 // T3 设计：测试连接。提示与可行动作见 T3 设计 §2.4
@@ -31,7 +36,7 @@ async function runTestConnection(): Promise<void> {
   const result = await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: '正在测试连接…',
+      title: vscode.l10n.t('Testing connection…'),
       cancellable: false,
     },
     () => testConnection(config),
@@ -40,41 +45,45 @@ async function runTestConnection(): Promise<void> {
   if (result.ok) {
     const action = await vscode.window.showInformationMessage(
       result.detail,
-      '复制链接',
+      BTN.copyLink,
     );
-    if (action === '复制链接') {
+    if (action === BTN.copyLink) {
       await vscode.env.clipboard.writeText(result.url);
       // 按钮点击后通知即消失，无反馈像没反应（T3 设计 §2.4）
-      vscode.window.setStatusBarMessage('测试文件链接已复制', 3000);
+      vscode.window.setStatusBarMessage(
+        vscode.l10n.t('Test file link copied'),
+        3000,
+      );
     }
     return;
   }
 
   // 失败：固定「重新测试」+ 按情形附一个针对性按钮（T3 设计 §2.4）
   let detail = result.detail;
-  const buttons = ['重新测试'];
+  const buttons = [BTN.retest];
   let settingsQuery: string | undefined;
   if (result.status === 401 || result.status === 403) {
     if (config.authType === 'none') {
       // authType=none 时凭据永不上线，引导录凭据是死胡同（T3 设计 §2.4）
-      detail +=
-        '（当前 authType=none，若服务端需要认证请改用 authCode/apiToken）';
+      detail += vscode.l10n.t(
+        ' (current authType=none; if the server requires authentication, switch to authCode/apiToken)',
+      );
       settingsQuery = 'imgbedUploader.authType';
-      buttons.push('打开设置');
+      buttons.push(BTN.openSettings);
     } else {
-      buttons.push('重新设置认证信息');
+      buttons.push(BTN.resetCredentials);
     }
   } else if (result.code === 'INVALID_SERVER_URL') {
     settingsQuery = 'imgbedUploader.serverUrl';
-    buttons.push('打开设置');
+    buttons.push(BTN.openSettings);
   }
 
   const action = await vscode.window.showErrorMessage(detail, ...buttons);
-  if (action === '重新测试') {
+  if (action === BTN.retest) {
     void vscode.commands.executeCommand('imgbed-uploader.testConnection');
-  } else if (action === '重新设置认证信息') {
+  } else if (action === BTN.resetCredentials) {
     void vscode.commands.executeCommand('imgbed-uploader.setCredentials');
-  } else if (action === '打开设置' && settingsQuery !== undefined) {
+  } else if (action === BTN.openSettings && settingsQuery !== undefined) {
     void vscode.commands.executeCommand(
       'workbench.action.openSettings',
       settingsQuery,
@@ -87,7 +96,7 @@ async function runUploadAll(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (editor === undefined) {
     void vscode.window.showInformationMessage(
-      'ImgBed Uploader：请先打开 Markdown / MDX 文档',
+      vscode.l10n.t('ImgBed Uploader: Open a Markdown / MDX document first'),
     );
     return;
   }
@@ -98,7 +107,7 @@ async function runUploadSelected(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (editor === undefined) {
     void vscode.window.showInformationMessage(
-      'ImgBed Uploader：请先打开 Markdown / MDX 文档',
+      vscode.l10n.t('ImgBed Uploader: Open a Markdown / MDX document first'),
     );
     return;
   }
@@ -121,7 +130,7 @@ async function runUploadFile(
       editor.document.languageId !== 'mdx')
   ) {
     void vscode.window.showInformationMessage(
-      'ImgBed Uploader：请先打开 Markdown / MDX 文档',
+      vscode.l10n.t('ImgBed Uploader: Open a Markdown / MDX document first'),
     );
     return;
   }
@@ -129,7 +138,7 @@ async function runUploadFile(
   if (files === undefined) {
     files = await vscode.window.showOpenDialog({
       canSelectMany: true,
-      filters: { 图片: [...IMAGE_EXTENSIONS] },
+      filters: { [vscode.l10n.t('Images')]: [...IMAGE_EXTENSIONS] },
     });
   }
   if (files === undefined || files.length === 0) {

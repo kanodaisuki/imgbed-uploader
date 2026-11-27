@@ -3,6 +3,7 @@ import { UploadError, upload } from './client';
 import { type Config, getConfig } from './config';
 import { markdownText } from './rewrite';
 import { hasCredential } from './secrets';
+import { BTN } from './strings';
 
 // T9 设计：粘贴接管（FR-3）。DocumentPasteEditProvider 单段式（设计 §2.2）。
 // 纯函数（文件名/链接/碰撞改名）不触 vscode；vscode 壳负责注册与管线（设计 §3）。
@@ -150,25 +151,34 @@ function errText(err: unknown): string {
 
 // fire-and-forget：不 await 用户操作、不阻塞粘贴返回（设计 §2.3）
 function warn(text: string): void {
-  void vscode.window.showWarningMessage(`ImgBed Uploader：${text}`);
+  void vscode.window.showWarningMessage(
+    vscode.l10n.t('ImgBed Uploader: {0}', text),
+  );
 }
 
-// 未配置提示（设计 §2.4）：带设置动作、一次粘贴一条，动作回调里执行不阻塞
+// 未配置提示（设计 §2.4）：带设置动作、一次粘贴一条，动作回调里执行不阻塞。
+// 整句两态（T12 规约 2）：名词碎片拼句在英文里语序不成立
 function warnUnconfigured(cfg: Config): void {
-  const missing = cfg.serverUrl === '' ? '图床地址' : '认证信息';
-  const action = cfg.serverUrl === '' ? '打开设置' : '设置认证信息';
+  const missingServer = cfg.serverUrl === '';
+  const action = missingServer ? BTN.openSettings : BTN.setCredentials;
   void vscode.window
     .showWarningMessage(
-      `ImgBed Uploader：粘贴上传失败：未配置${missing}，图片将转存到工作区`,
+      missingServer
+        ? vscode.l10n.t(
+            'ImgBed Uploader: Paste upload failed: the image host URL is not configured; the image will be saved to the workspace',
+          )
+        : vscode.l10n.t(
+            'ImgBed Uploader: Paste upload failed: credentials are not configured; the image will be saved to the workspace',
+          ),
       action,
     )
     .then((picked) => {
-      if (picked === '打开设置') {
+      if (picked === BTN.openSettings) {
         void vscode.commands.executeCommand(
           'workbench.action.openSettings',
           'imgbedUploader.serverUrl',
         );
-      } else if (picked === '设置认证信息') {
+      } else if (picked === BTN.setCredentials) {
         void vscode.commands.executeCommand('imgbed-uploader.setCredentials');
       }
     });
@@ -186,7 +196,11 @@ async function fallbackSave(
     ? vscode.workspace.workspaceFolders?.[0]?.uri
     : vscode.Uri.joinPath(document.uri, '..');
   if (dir === undefined) {
-    warn('无法保存图片：请先保存文档或打开工作区');
+    warn(
+      vscode.l10n.t(
+        'Cannot save the image: save the document or open a workspace first',
+      ),
+    );
     return undefined;
   }
   try {
@@ -205,7 +219,7 @@ async function fallbackSave(
     await vscode.workspace.fs.writeFile(target, data);
     return localImageLink(isUntitled ? undefined : dir.fsPath, target.fsPath);
   } catch (err) {
-    warn(`无法保存图片：${errText(err)}`);
+    warn(vscode.l10n.t('Cannot save the image: {0}', errText(err)));
     return undefined;
   }
 }
@@ -255,7 +269,7 @@ async function provideDocumentPasteEdits(
           if (token.isCancellationRequested) {
             return undefined; // 临界 Esc 不留弹窗（设计 §2.5）
           }
-          warn(`粘贴上传失败：${errText(err)}`); // 异常自 catch 自提示（设计 §2.6）
+          warn(vscode.l10n.t('Paste upload failed: {0}', errText(err))); // 异常自 catch 自提示（设计 §2.6）
           link = await fallbackSave(document, name, img.data);
         }
       } else {
@@ -272,10 +286,16 @@ async function provideDocumentPasteEdits(
     if (text === undefined) {
       return undefined; // 全部未产出链接（设计 流程 6）
     }
-    return [new vscode.DocumentPasteEdit(text, '上传到图床', PASTE_KIND)];
+    return [
+      new vscode.DocumentPasteEdit(
+        text,
+        vscode.l10n.t('Upload to image host'),
+        PASTE_KIND,
+      ),
+    ];
   } catch (err) {
     // provider 异常会被 VS Code 静默吞掉（设计 §2.6）：兜底提示
-    warn(`粘贴处理异常：${errText(err)}`);
+    warn(vscode.l10n.t('Paste handling error: {0}', errText(err)));
     return undefined;
   }
 }

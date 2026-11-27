@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { type Config } from './config';
 import { getCredential } from './secrets';
 
@@ -123,10 +124,10 @@ export function mapError(status: number, body: string): UploadError {
     // 非 JSON 响应体，走下方兜底
   }
   if (text === undefined) {
-    text = `HTTP ${status}：${body.slice(0, 200)}`;
+    text = vscode.l10n.t('HTTP {0}: {1}', status, body.slice(0, 200));
   }
   if (status === 401 || status === 403) {
-    text += '（请检查认证信息）';
+    text += vscode.l10n.t(' (check your credentials)');
   }
   return new UploadError(text, { status, code });
 }
@@ -140,9 +141,12 @@ export async function upload(
   try {
     new URL(cfg.serverUrl);
   } catch {
-    throw new UploadError('图床地址无效，请检查 serverUrl 配置', {
-      code: 'INVALID_SERVER_URL',
-    });
+    throw new UploadError(
+      vscode.l10n.t('Invalid image host URL; check the serverUrl setting'),
+      {
+        code: 'INVALID_SERVER_URL',
+      },
+    );
   }
 
   const timeoutMs = opts?.timeoutMs ?? 60_000;
@@ -183,11 +187,13 @@ export async function upload(
     );
   } catch (err) {
     if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new UploadError(`上传超时（${Math.round(timeoutMs / 1000)} 秒）`);
+      throw new UploadError(
+        vscode.l10n.t('Upload timed out ({0} s)', Math.round(timeoutMs / 1000)),
+      );
     }
     const cause = err instanceof Error ? err.cause : undefined;
     const detail = cause instanceof Error ? cause.message : String(err);
-    throw new UploadError(`上传失败：${detail}`);
+    throw new UploadError(vscode.l10n.t('Upload failed: {0}', detail));
   }
 
   const body = await res.text();
@@ -199,10 +205,14 @@ export async function upload(
   try {
     parsed = JSON.parse(body) as { src?: unknown; publicUrl?: unknown };
   } catch {
-    throw new UploadError('上传响应格式异常', { status: res.status });
+    throw new UploadError(vscode.l10n.t('Unexpected upload response format'), {
+      status: res.status,
+    });
   }
   if (typeof parsed.src !== 'string' || parsed.src === '') {
-    throw new UploadError('上传响应格式异常', { status: res.status });
+    throw new UploadError(vscode.l10n.t('Unexpected upload response format'), {
+      status: res.status,
+    });
   }
   return {
     url: resolveUrl(
@@ -235,7 +245,11 @@ export async function testConnection(cfg: Config): Promise<TestResult> {
     const { url } = await upload({ name: TEST_FILE_NAME, data: TEST_PNG }, cfg);
     return {
       ok: true,
-      detail: `连接成功（渠道：${cfg.uploadChannel}），测试文件已上传：${url}（可在图床中自行删除）`,
+      detail: vscode.l10n.t(
+        'Connected (channel: {0}); test file uploaded: {1} (you can delete it on the image host)',
+        cfg.uploadChannel,
+        url,
+      ),
       url,
     };
   } catch (err) {
@@ -249,6 +263,9 @@ export async function testConnection(cfg: Config): Promise<TestResult> {
     }
     // 非 UploadError 异常 catch-all，不冒泡成 VS Code 英文通用报错（T3 设计 §2.3）
     const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, detail: `测试连接失败：${message}` };
+    return {
+      ok: false,
+      detail: vscode.l10n.t('Connection test failed: {0}', message),
+    };
   }
 }
